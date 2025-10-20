@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>STL Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden; /* Hide scrollbars */
+    }
+
+    #viewer-container {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="viewer-container">
+    <canvas id="stl-canvas"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/STLLoader.js"></script>
+  <script>
+    // Setup the scene, camera, and renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('viewer-container').appendChild(renderer.domElement);
+
+    // Load the STL file
+    const loader = new THREE.STLLoader();
+    loader.load('your_stl_file.stl', function (geometry) {
+      geometry.computeFaceVertexNormals(); // Crucial for proper shading
+
+      // Adjust the geometry (optional)
+      geometry.scale(0.01, 0.01, 0.01);  // Scale down the model (adjust value as needed)
+      geometry.rotateX(-Math.PI / 2); // Rotate to correct orientation (adjust as needed)
+
+      // Create a mesh from the geometry and add it to the scene
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: 0xff0000 })); // Or use MeshPhongMaterial, MeshStandardMaterial
+      scene.add(mesh);
+
+      // Enable OrbitControls for camera manipulation
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true; // Smooth camera movement
+      controls.dampingFactor = 0.05;
+      controls.rotateSpeed = 1;
+      controls.zoomSpeed = 1.0;
+      controls.panSpeed = 0.5;
+
+      // Animate the scene
+      const animate = function () {
+        requestAnimationFrame(animate);
+
+        // Update the mesh rotation (optional - to animate)
+        // mesh.rotation.x += 0.001;
+        // mesh.rotation.y += 0.001;
+
+        // Render the scene
+        renderer.render(scene, camera);
+      };
+
+      animate();
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function () {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+  </script>
+
+</body>
+</html>
