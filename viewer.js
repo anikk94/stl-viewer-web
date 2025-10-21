@@ -107,6 +107,7 @@ function loadSTL(file) {
     const geometry = loader.parse(event.target.result);
     const material = new THREE.MeshPhongMaterial({ color: getRandomColor(), specular: 0x555555, shininess: 30 });
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = file.name;
     scene.add(mesh);
     loadedMeshes.push(mesh);
     addModelToList(file.name, mesh);
@@ -125,9 +126,11 @@ function loadDefaultSTL(){
         shininess:200
       });
       const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = 'starter_model';
       scene.add(mesh);
       loadedMeshes.push(mesh);
       addModelToList('starter_model', mesh);
+      mesh.rotation.x = -Math.PI/2;
       fitCameraToAllObjects();
     })
 }
@@ -141,6 +144,24 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+let highlightedObject = null;
+let highlightedObjectColor = null;
+
+// Hover label (top-centered, white text, no background)
+const hoverLabel = document.createElement('div');
+hoverLabel.id = 'hover-label';
+hoverLabel.style.position = 'fixed';
+hoverLabel.style.top = '16px';
+hoverLabel.style.left = '50%';
+hoverLabel.style.transform = 'translateX(-50%)';
+hoverLabel.style.color = '#ffffff';
+hoverLabel.style.fontSize = '28px';
+hoverLabel.style.fontFamily = 'sans-serif';
+hoverLabel.style.pointerEvents = 'none';
+hoverLabel.style.userSelect = 'none';
+hoverLabel.style.zIndex = '1000';
+hoverLabel.style.display = 'none';
+document.body.appendChild(hoverLabel);
 
 function onClick(event) {
   if (transformControls.dragging) return;
@@ -162,10 +183,74 @@ function onClick(event) {
   }
 }
 
+function onPointerMove(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(loadedMeshes, false);
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    hoverLabel.textContent = obj.name || '';
+    hoverLabel.style.display = hoverLabel.textContent ? 'block' : 'none';
+    // --- colour swap ---
+    if (highlightedObject !== obj) {
+      if (highlightedObject === null) {
+        // no cached object, need to highlight current object
+        console.log("null to object change");
+        highlightedObject = obj; // cache object
+        highlightedObjectColor = obj.material.color; // cache object colour
+        obj.material.color = new THREE.Color(1, 1, 0); // apply highlight colour
+      } else {
+        // cached object not same as current object, not null, 
+        // => must be differnt object, need to change highlighted object
+        console.log("object to object change");
+        highlightedObject.material.color = highlightedObjectColor; // apply cached colour to cached object 
+        highlightedObject = obj; // cache current object
+        highlightedObjectColor = obj.material.color; // cache current object colour
+        obj.material.color = new THREE.Color(1, 1, 0); // apply highlight colour
+      }
+    } else{
+      return;
+      // current obj === highlightedObject -> no need to change
+    }
+  } else {
+    hoverLabel.style.display = 'none';
+    if (highlightedObject !== null) { // if not on object and cache is full
+      // console.log(highlightedObject);
+      highlightedObject.material.color = highlightedObjectColor;// restore colour of cached object
+      highlightedObject = null;// empty the cache
+    } else {}
+  }
+}
+
+// change model colour when clicked
+function onMouseDown(event){
+  const coords = new THREE.Vector2(
+    -1 + 2 * (event.clientX / renderer.domElement.clientWidth),
+    1 - 2 * (event.clientY / renderer.domElement.clientHeight),  
+  )
+  rc2.setFromCamera(coords, camera);
+  const intersections = rc2.intersectObjects(scene.children, true);
+  
+  if (intersections.length > 0) {
+    // console.log(intersections);
+    const selectedObject = intersections[0].object;
+    const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+    selectedObject.material.color = color;
+    console.log(`${selectedObject.name} was clicked!`);
+  }
+}
+
+// event - screen controls
 // renderer.domElement.addEventListener('pointerdown', onClick);
 renderer.domElement.addEventListener('pointerup', onClick);
-
-
+// event - highlight model that is being pointed with mouse
+renderer.domElement.addEventListener('pointermove', onPointerMove);
+const rc2 = new THREE.Raycaster();
+// event - change model colour when clicked
+document.addEventListener('mousedown', onMouseDown);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
