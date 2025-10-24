@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-    
+
 // THREE JS SETUP
 const canvas = document.getElementById('viewer');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -118,7 +118,8 @@ function loadSTL(file) {
 
 function loadDefaultSTL(){
   loader.load(
-    "bottom_screws.stl",
+    // "resources/bottom_screws.stl",
+    "resources/bin_of_screws_v3ScrewModel_WObin.stl",
     function(geometry){
       const material = new THREE.MeshPhongMaterial({
         color: 0xcccccc,
@@ -133,6 +134,36 @@ function loadDefaultSTL(){
       mesh.rotation.x = -Math.PI/2;
       fitCameraToAllObjects();
     })
+}
+
+function loadScrews() {
+  let screw_count = 0;
+  let positionOffset = 0;
+  let angleOffset = 0;
+  // read m12 screw model
+  loader.load(
+    "resources/m12_screw_detailed.stl",
+    function (geometry) {
+      const material = new THREE.MeshPhongMaterial({
+        color: 0xcccccc,
+        specular: 0x444444,
+        shininess: 200,
+      });
+      for (let i=0; i< 3; i+=1){
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.name = "screw_" + screw_count;
+        // mesh.position.x = positionOffset; 
+        mesh.rotation.y = angleOffset;
+        scene.add(mesh);
+        loadedMeshes.push(mesh);
+        // positionOffset += 50;
+        angleOffset += Math.PI/6;
+        // angleOffset += 30;
+        screw_count += 1;
+      }
+      fitCameraToAllObjects();
+    }
+  );
 }
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
@@ -258,7 +289,8 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-loadDefaultSTL();
+// loadDefaultSTL();
+loadScrews();
 
 function animate() {
   requestAnimationFrame(animate);
