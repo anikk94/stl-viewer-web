@@ -85,7 +85,7 @@ function parseScrewPoses(text){
         const pos = {x:0,y:0,z:0};
         for (const key of ['x','y','z']){
             if (i >= lines.length) break;
-            const m = lines[i].match(new RegExp(`^\s*${key}\s*:\s*([-+]?\\d*\\.?\\d+(?:[eE][-+]?\\d+)?)`));
+            const m = lines[i].match(new RegExp(`^ *${key} *: *([-+]?\\d*\\.?\\d+(?:[eE][-+]?\\d+)?)`));
             if (m) pos[key] = parseFloat(m[1]);
             i++;
         }
@@ -122,8 +122,12 @@ function parseScrewPoses(text){
     return items;
 }
 
-const screwPoses = parseScrewPoses(text.slice(0, 328));
-console.log('Parsed poses:', screwPoses);
+
+
+export const screwPoses = parseScrewPoses(text);
+
+// const screwPoses = parseScrewPoses(text.slice(0, 328));
+// console.log('Parsed poses:', screwPoses);
 // console.log(text.slice(0, 328)); // first 2 entries
 
 

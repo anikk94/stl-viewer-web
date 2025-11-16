@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
+import { screwPoses } from "./bin_of_screws.js";
 
 // THREE JS SETUP
 const canvas = document.getElementById('viewer');
@@ -25,12 +26,12 @@ const grid = new THREE.GridHelper(200, 20, 0x888888, 0x444444); // size 20, divi
 // const grid = new GridHelper(20, 20, 0x888888, 0x444444); // size 20, divisions 20
 scene.add(grid);
 
-const transformControls = new TransformControls(camera, renderer.domElement);
-scene.add(transformControls);
+// const transformControls = new TransformControls(camera, renderer.domElement);
+// scene.add(transformControls);
 
-transformControls.addEventListener('dragging-changed', event => {
-  controls.enabled = !event.value;
-});
+// transformControls.addEventListener('dragging-changed', event => {
+//   controls.enabled = !event.value;
+// });
 
 const axesHelper = new THREE.AxesHelper(2);
 scene.add(axesHelper);
@@ -50,9 +51,9 @@ const modelList = document.getElementById('modelList');
 // --------------------------------- MAIN ---------------------------------- //
 let selectedMesh = null;
 
-document.getElementById('modeSelector').addEventListener('change', (e) => {
-  transformControls.setMode(e.target.value);
-});
+// document.getElementById('modeSelector').addEventListener('change', (e) => {
+//   transformControls.setMode(e.target.value);
+// });
 
 function fitCameraToAllObjects() {
   if (loadedMeshes.length === 0) return;
@@ -137,34 +138,47 @@ function loadDefaultSTL(){
 }
 
 function loadScrews() {
+  // console.log (screwPoses);
   let screw_count = 0;
-  let positionOffset = 0;
-  let angleOffset = 0;
-  // read m12 screw model
-  loader.load(
-    "resources/m12_screw_detailed.stl",
-    function (geometry) {
-      const material = new THREE.MeshPhongMaterial({
-        color: 0xcccccc,
-        specular: 0x444444,
-        shininess: 200,
-      });
-      for (let i=0; i< 3; i+=1){
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = "screw_" + screw_count;
-        // mesh.position.x = positionOffset; 
-        mesh.rotation.y = angleOffset;
-        scene.add(mesh);
-        loadedMeshes.push(mesh);
-        // positionOffset += 50;
-        angleOffset += Math.PI/6;
-        // angleOffset += 30;
-        screw_count += 1;
+  // let positionOffset = 0;
+  // let angleOffset = 0;
+  // // read m12 screw model
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xcccccc,
+    specular: 0x444444,
+    shininess: 200,
+  });
+    loader.load(
+      "resources/m12_screw_detailed.stl",
+      function (geometry) {
+        for (let i=0; i< screwPoses.length; i+=1){
+          if(i===0) continue;
+          // NOTE: super important to say baseMaterial.clone() otherwise the 
+          // colour of all the models gets linked to baseMaterial
+          const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
+          // mesh.name = "screw_" + screw_count;
+          mesh.name = `screw_${screw_count}`;
+          mesh.position.x = screwPoses[i].position.x*1000; 
+          mesh.position.y = screwPoses[i].position.y*1000 -50; 
+          mesh.position.z = screwPoses[i].position.z*1000; 
+          mesh.rotation.x = screwPoses[i].orientation.rx;
+          mesh.rotation.y = screwPoses[i].orientation.ry;
+          mesh.rotation.z = screwPoses[i].orientation.rz;
+          scene.add(mesh);
+          loadedMeshes.push(mesh);
+
+          addModelToList(mesh.name, mesh);
+
+          // positionOffset += 50;
+          // angleOffset += Math.PI/6;
+          // angleOffset += 30;
+          screw_count += 1;
+        }
+        fitCameraToAllObjects();
       }
-      fitCameraToAllObjects();
-    }
-  );
-}
+    );
+
+  }
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
   const files = e.target.files;
@@ -173,10 +187,10 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
   }
 });
 
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-let highlightedObject = null;
-let highlightedObjectColor = null;
+// const raycaster = new THREE.Raycaster();
+// const mouse = new THREE.Vector2();
+// let highlightedObject = null;
+// let highlightedObjectColor = null;
 
 // Hover label (top-centered, white text, no background)
 const hoverLabel = document.createElement('div');
@@ -194,26 +208,37 @@ hoverLabel.style.zIndex = '1000';
 hoverLabel.style.display = 'none';
 document.body.appendChild(hoverLabel);
 
-function onClick(event) {
-  if (transformControls.dragging) return;
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(loadedMeshes);
-  
-  if (intersects.length > 0) {
-    if (selectedMesh) transformControls.detach(selectedMesh);
-    selectedMesh = intersects[0].object;
-    console.log(selectedMesh.name)
-    transformControls.attach(selectedMesh);
-  } else {
-    transformControls.detach(selectedMesh);
-    selectedMesh = null;
-  }
-}
 
+// ----------------------------------------------------------------------------
+//
+// object transform controls
+//
+// ----------------------------------------------------------------------------
+// function onClick(event) {
+//   if (transformControls.dragging) return;
+//   const rect = renderer.domElement.getBoundingClientRect();
+//   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+//   mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  
+//   raycaster.setFromCamera(mouse, camera);
+//   const intersects = raycaster.intersectObjects(loadedMeshes);
+  
+//   if (intersects.length > 0) {
+//     if (selectedMesh) transformControls.detach(selectedMesh);
+//     selectedMesh = intersects[0].object;
+//     // console.log(selectedMesh.name)
+//     transformControls.attach(selectedMesh);
+//   } else {
+//     transformControls.detach(selectedMesh);
+//     selectedMesh = null;
+//   }
+// }
+
+// ----------------------------------------------------------------------------
+//
+// object highlighting
+//
+// ----------------------------------------------------------------------------
 function onPointerMove(event) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -225,22 +250,23 @@ function onPointerMove(event) {
     const obj = intersects[0].object;
     hoverLabel.textContent = obj.name || '';
     hoverLabel.style.display = hoverLabel.textContent ? 'block' : 'none';
+
     // --- colour swap ---
     if (highlightedObject !== obj) {
       if (highlightedObject === null) {
         // no cached object, need to highlight current object
-        console.log("null to object change");
+        // console.log("null to object change");
         highlightedObject = obj; // cache object
         highlightedObjectColor = obj.material.color; // cache object colour
-        obj.material.color = new THREE.Color(1, 1, 0); // apply highlight colour
+        obj.material.color = new THREE.Color(0, 1, 0); // apply highlight colour
       } else {
         // cached object not same as current object, not null, 
         // => must be differnt object, need to change highlighted object
-        console.log("object to object change");
+        // console.log("object to object change");
         highlightedObject.material.color = highlightedObjectColor; // apply cached colour to cached object 
         highlightedObject = obj; // cache current object
         highlightedObjectColor = obj.material.color; // cache current object colour
-        obj.material.color = new THREE.Color(1, 1, 0); // apply highlight colour
+        obj.material.color = new THREE.Color(0, 1, 0); // apply highlight colour
       }
     } else{
       return;
@@ -256,31 +282,54 @@ function onPointerMove(event) {
   }
 }
 
+// ----------------------------------------------------------------------------
+//
 // change model colour when clicked
+//
+// ----------------------------------------------------------------------------
 function onMouseDown(event){
+  // const coords = new THREE.Vector2(
+    //   -1 + 2 * (event.clientX / renderer.domElement.clientWidth),
+    //   1 - 2 * (event.clientY / renderer.domElement.clientHeight),  
+  // );
+  const rect = renderer.domElement.getBoundingClientRect();
   const coords = new THREE.Vector2(
-    -1 + 2 * (event.clientX / renderer.domElement.clientWidth),
-    1 - 2 * (event.clientY / renderer.domElement.clientHeight),  
-  )
+   ((event.clientX - rect.left) / rect.width) * 2 - 1,
+  -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  
   rc2.setFromCamera(coords, camera);
   const intersections = rc2.intersectObjects(scene.children, true);
   
   if (intersections.length > 0) {
-    // console.log(intersections);
     const selectedObject = intersections[0].object;
-    const color = new THREE.Color(Math.random(), Math.random(), Math.random());
-    selectedObject.material.color = color;
+    // const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+    // selectedObject.material.color = color;
     console.log(`${selectedObject.name} was clicked!`);
   }
 }
 
-// event - screen controls
-// renderer.domElement.addEventListener('pointerdown', onClick);
-renderer.domElement.addEventListener('pointerup', onClick);
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// %                                                                          %
+// %                                   MAIN                                   %
+// %                                                                          %
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let highlightedObject = null;
+let highlightedObjectColor = null;
+
+// event - attach transform screen controls to object
+// --------------------------------------------------
+// renderer.domElement.addEventListener('pointerdown', onClick); // don't use
+// renderer.domElement.addEventListener('pointerup', onClick);
 // event - highlight model that is being pointed with mouse
+// --------------------------------------------------------
 renderer.domElement.addEventListener('pointermove', onPointerMove);
 const rc2 = new THREE.Raycaster();
 // event - change model colour when clicked
+// ----------------------------------------
 document.addEventListener('mousedown', onMouseDown);
 
 window.addEventListener('resize', () => {
@@ -298,3 +347,4 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
