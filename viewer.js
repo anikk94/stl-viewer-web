@@ -33,14 +33,29 @@ scene.add(grid);
 //   controls.enabled = !event.value;
 // });
 
-const axesHelper = new THREE.AxesHelper(2);
+const axisSize = 1000000;
+const axesHelper = new THREE.AxesHelper(axisSize);
 scene.add(axesHelper);
 
 // --------------------------------- LIGHT --------------------------------- //
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(1, 1, 2);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040));
+const light1 = new THREE.DirectionalLight(0xffffff, 1);
+light1.position.set(500, 500, 500);
+scene.add(light1);
+const light2 = new THREE.DirectionalLight(0xffffff, 1);
+light2.position.set(-500, 500, 500);
+scene.add(light2);
+const light3 = new THREE.DirectionalLight(0xffffff, 1);
+light3.position.set(0, 500, -500);
+scene.add(light3);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambientLight);
+
+const light1Helper = new THREE.DirectionalLightHelper(light1);
+scene.add(light1Helper);
+const light2Helper = new THREE.DirectionalLightHelper(light2);
+scene.add(light2Helper);
+const light3Helper = new THREE.DirectionalLightHelper(light3);
+scene.add(light3Helper);
 
 // ------------------------------ STL LOADER ------------------------------- //
 const loader = new STLLoader();
@@ -148,6 +163,11 @@ function loadScrews() {
     specular: 0x444444,
     shininess: 200,
   });
+  const objectAxes = new THREE.AxesHelper(50);
+  objectAxes.visible = false;
+  // const baseMaterial = new THREE.MeshBasicMaterial({
+  //   color: 0xcccccc,
+  // });
     loader.load(
       "resources/m12_screw_detailed.stl",
       function (geometry) {
@@ -156,19 +176,18 @@ function loadScrews() {
           // NOTE: super important to say baseMaterial.clone() otherwise the 
           // colour of all the models gets linked to baseMaterial
           const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
+          mesh.add(objectAxes.clone());
           // mesh.name = "screw_" + screw_count;
           mesh.name = `screw_${screw_count}`;
           mesh.position.x = screwPoses[i].position.x*1000; 
-          mesh.position.y = screwPoses[i].position.y*1000 -50; 
-          mesh.position.z = screwPoses[i].position.z*1000; 
+          mesh.position.y = screwPoses[i].position.y*1000; 
+          mesh.position.z = screwPoses[i].position.z*1000 - 50; 
           mesh.rotation.x = screwPoses[i].orientation.rx;
           mesh.rotation.y = screwPoses[i].orientation.ry;
           mesh.rotation.z = screwPoses[i].orientation.rz;
           scene.add(mesh);
           loadedMeshes.push(mesh);
-
           addModelToList(mesh.name, mesh);
-
           // positionOffset += 50;
           // angleOffset += Math.PI/6;
           // angleOffset += 30;
@@ -303,9 +322,33 @@ function onMouseDown(event){
   
   if (intersections.length > 0) {
     const selectedObject = intersections[0].object;
+    if (selectedObject.type != "Mesh") return;
     // const color = new THREE.Color(Math.random(), Math.random(), Math.random());
     // selectedObject.material.color = color;
-    console.log(`${selectedObject.name} was clicked!`);
+    console.log(`${selectedObject.name} selected!`);
+    selectedObject.children[0].visible = !selectedObject.children[0].visible;
+    // selectedObject.material.wireframe = !selectedObject.material.wireframe;
+    // selectedObject.material.emissiveIntensity = 0.2;
+    // selectedObject.material.emissive = new THREE.Color(0xff0000);
+    // DOESNT WORK
+    // selectedObject.material.transparent = true;
+    // DOESNT WORK
+    // selectedObject.material.opacity = 0.2;
+
+    // selectedObject.material.opacity = 0.1;
+
+
+    // console.log(selectedObject);
+    const euler = new THREE.Euler();
+    // const pos = new THREE.Vector3();
+    const pos = selectedObject.position;
+    euler.setFromQuaternion(selectedObject.quaternion);
+    console.log(
+      'position:\n', pos.x, pos.y, pos.z,
+      '\norientation:\n', euler.x*180/Math.PI, euler.y*180/Math.PI, euler.z*180/Math.PI);
+    // console.log(selectedObject.position);
+    // console.log(euler);
+
   }
 }
 
