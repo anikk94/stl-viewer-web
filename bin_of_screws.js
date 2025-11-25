@@ -26,7 +26,85 @@ import * as THREE from 'three';
 //     })
 // read list of poses of screws in bin (simulation or real bin)
 let poseText = "";
-const filePath = "data/screw_poses.txt";
+
+// const filePath = "data/screw_poses_20251021_1.txt";
+
+// const filePath = "data/screw_poses_20251120_1.txt";
+
+//  ----------0. world ----------
+// position: 
+//   x: 0
+//   y: 0
+//   z: 0
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------1. bottom ----------
+// position: 
+//   x: 0
+//   y: 0
+//   z: 0
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------2. front_wall ----------
+// position: 
+//   x: 0
+//   y: -0.0595
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------3. back_wall ----------
+// position: 
+//   x: 0
+//   y: 0.0595
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------4. left_wall ----------
+// position: 
+//   x: -0.0715
+//   y: 0
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------5. right_wall ----------
+// position: 
+//   x: 0.0715
+//   y: 0
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+// [2025-11-25 17:28:39] Simulation time: 0.1s
+// [2025-11-25 17:34:35] Simulation time: 10s
+// plant_context.get_time() 10
+// plant.get_name() plant
+// plant.num_bodies() 36
+// plant.num_bodies() 36
+const filePath = "data/screw_poses_20251125-123600.txt";
+
 // fetch(filePath)
 //     .then(response => {
 //         if (!response.ok){

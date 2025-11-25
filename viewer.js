@@ -181,11 +181,15 @@ function loadScrews() {
           mesh.name = `screw_${screw_count}`;
           mesh.position.x = screwPoses[i].position.x*1000; 
           mesh.position.y = screwPoses[i].position.y*1000; 
-          mesh.position.z = screwPoses[i].position.z*1000 - 50; 
+          mesh.position.z = screwPoses[i].position.z*1000; 
           mesh.rotation.x = screwPoses[i].orientation.rx;
           mesh.rotation.y = screwPoses[i].orientation.ry;
           mesh.rotation.z = screwPoses[i].orientation.rz;
+
+          
           scene.add(mesh);
+          mesh.arrow = attachVector(mesh);
+          mesh.arrow.visible = false;
           loadedMeshes.push(mesh);
           addModelToList(mesh.name, mesh);
           // positionOffset += 50;
@@ -198,6 +202,39 @@ function loadScrews() {
     );
 
   }
+
+
+function loadBin(){
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xcccccc,
+    specular: 0x444444,
+    shininess: 200,
+    transparent: true,
+    opacity: 0.4,
+  });
+  const objectAxes = new THREE.AxesHelper(50);
+  objectAxes.visible = false;
+  loader.load(
+    "resources/rectangular_box.STL",
+    function (geometry){
+      const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
+      mesh.add(objectAxes.clone());
+      mesh.name = "rectangular_bin";
+      mesh.position.x = 0;
+      mesh.position.y = 0;
+      mesh.position.z = 0;
+      mesh.rotation.x = 0;
+      mesh.rotation.y = 0;
+      mesh.rotation.z = 0;
+      scene.add(mesh);
+      mesh.arrow = attachVector(mesh);
+      mesh.arrow.visible = false;
+      loadedMeshes.push(mesh);
+      addModelToList(mesh.name, mesh);
+      fitCameraToAllObjects();
+    }
+  )
+}
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
   const files = e.target.files;
@@ -269,8 +306,14 @@ function onPointerMove(event) {
     const obj = intersects[0].object;
     hoverLabel.textContent = obj.name || '';
     hoverLabel.style.display = hoverLabel.textContent ? 'block' : 'none';
+    
+    // --- display pose ---
+    const euler = new THREE.Euler();
+    euler.setFromQuaternion(obj.quaternion);
+    hoverLabel.innerHTML += "<br>" + "<span style='font-size: 12px;'>Pos: " + `${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)}` + "</span>";
+    hoverLabel.innerHTML += "<br>" + "<span style='font-size: 12px;'>Rot: " + `${(euler.x*180/Math.PI).toFixed(2)}, ${(euler.y*180/Math.PI).toFixed(2)}, ${(euler.z*180/Math.PI).toFixed(2)}` + "</span>";
 
-    // --- colour swap ---
+    // --- colour swap --- 
     if (highlightedObject !== obj) {
       if (highlightedObject === null) {
         // no cached object, need to highlight current object
@@ -320,6 +363,7 @@ function onMouseDown(event){
   rc2.setFromCamera(coords, camera);
   const intersections = rc2.intersectObjects(scene.children, true);
   
+  // act only if dealing with valid mesh
   if (intersections.length > 0) {
     const selectedObject = intersections[0].object;
     if (selectedObject.type != "Mesh") return;
@@ -344,13 +388,48 @@ function onMouseDown(event){
     const pos = selectedObject.position;
     euler.setFromQuaternion(selectedObject.quaternion);
     console.log(
-      'position:\n', pos.x, pos.y, pos.z,
-      '\norientation:\n', euler.x*180/Math.PI, euler.y*180/Math.PI, euler.z*180/Math.PI);
+      'position:\n', pos.x.toFixed(2), pos.y.toFixed(2), pos.z.toFixed(2),
+      '\norientation:\n', (euler.x*180/Math.PI).toFixed(2), (euler.y*180/Math.PI).toFixed(2), (euler.z*180/Math.PI).toFixed(2));
     // console.log(selectedObject.position);
     // console.log(euler);
 
+    // --- calculate relative pose difference to other screws ---
+    pose_diff(selectedObject);
   }
 }
+
+function pose_diff(selObj){
+  // console.log(loadedMeshes);
+  const objIdx = loadedMeshes.findIndex(o => o.uuid === selObj.uuid);
+  matPrint(selObj.matrixWorld);
+}
+
+function matPrint(mat){
+  const sigFigs = 2;
+  const padW = 6;
+  let matStr = "";
+  if(mat instanceof THREE.Matrix4){
+    mat = mat.elements;
+  } 
+  for (let i=0;i<4;i++){
+    matStr += `${mat[i].toFixed(sigFigs).padStart(padW)} ${mat[i+4].toFixed(sigFigs).padStart(padW)} ${mat[i+8].toFixed(sigFigs).padStart(padW)} ${mat[i+12].toFixed(sigFigs).padStart(padW)}\n`
+  }
+  console.log(matStr);
+}
+
+function attachVector(obj){
+  const axis = new THREE.Vector3(-1, 0, 0);
+  const direction = axis.applyQuaternion(obj.quaternion);
+  const origin = obj.position;
+  const length = 100;
+  const colour = 0xff0000;
+  const headLength = length*0.2;
+  const headWidth = headLength*0.2;
+  const arrowHelper = new THREE.ArrowHelper(direction, origin, length, colour, headLength, headWidth);
+  scene.add(arrowHelper);
+  return arrowHelper;
+}
+
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %                                                                          %
@@ -381,7 +460,11 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+
 // loadDefaultSTL();
+
+loadBin();
+
 loadScrews();
 
 function animate() {
