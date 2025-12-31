@@ -74,15 +74,19 @@
     {
       "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
+        "three/examples/jsm/loaders/OBJLoader.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/loaders/OBJLoader.js",
         "three/examples/jsm/loaders/STLLoader.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/loaders/STLLoader.js",
         "three/examples/jsm/controls/OrbitControls.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/controls/OrbitControls.js",
-        "three/examples/jsm/controls/TransformControls.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/controls/TransformControls.js"
+        "three/examples/jsm/controls/TransformControls.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/controls/TransformControls.js",
+        "three/examples/jsm/exporters/STLExporter.js": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/exporters/STLExporter.js"
       }
     }
   </script>
 </head>
 <body>
   <input type="file" id="fileInput" accept=".stl" multiple style="position:absolute;z-index:10;top:10px;left:10px;color:white;"/>
+  <br>
+  <button id="exportCombined" style="position:absolute;z-index:10;top:10px;left: 300px;">Export combined STL</button>
   <br>
   <p id="mouse-info">mouse position:<br>x: <span id="mouse-x">0</span><br>y: <span id="mouse-y">0</span></p>
   <div id="sidebar">
@@ -98,7 +102,7 @@
   <canvas id="viewer"></canvas>
 
   <!-- Link to external JavaScript -->
-  <script type="module" src="bin_of_screws.js"></script>
+  <script type="module" src="read_input_data.js"></script>
   <script type="module" src="viewer.js"></script>
   <script src="util.js"></script>
 </body>

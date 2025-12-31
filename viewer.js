@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-import { screwPoses } from "./bin_of_screws.js";
+import { screwPoses } from "./read_input_data.js";
+import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+
 
 // THREE JS SETUP
 const canvas = document.getElementById('viewer');
@@ -24,7 +27,7 @@ controls.dampingFactor = 0.2;
 // Add a grid to the scene
 const grid = new THREE.GridHelper(200, 20, 0x888888, 0x444444); // size 20, divisions 20
 // const grid = new GridHelper(20, 20, 0x888888, 0x444444); // size 20, divisions 20
-scene.add(grid);
+// scene.add(grid);
 
 // const transformControls = new TransformControls(camera, renderer.domElement);
 // scene.add(transformControls);
@@ -50,25 +53,109 @@ scene.add(light3);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
 scene.add(ambientLight);
 
-const light1Helper = new THREE.DirectionalLightHelper(light1);
-scene.add(light1Helper);
-const light2Helper = new THREE.DirectionalLightHelper(light2);
-scene.add(light2Helper);
-const light3Helper = new THREE.DirectionalLightHelper(light3);
-scene.add(light3Helper);
+if (0){
+  const light1Helper = new THREE.DirectionalLightHelper(light1);
+  scene.add(light1Helper);
+  const light2Helper = new THREE.DirectionalLightHelper(light2);
+  scene.add(light2Helper);
+  const light3Helper = new THREE.DirectionalLightHelper(light3);
+  scene.add(light3Helper);
+}
 
 // ------------------------------ STL LOADER ------------------------------- //
+const objLoader = new OBJLoader();
 const loader = new STLLoader();
 const loadedMeshes = [];
 const modelList = document.getElementById('modelList');
 
+const exporter = new STLExporter();
 
-// --------------------------------- MAIN ---------------------------------- //
+
+const _tmpAxes = [];
+const _tmpEdge = new THREE.Vector3();
+const _tmpAxis = new THREE.Vector3();
+const _triANormal = new THREE.Vector3();
+const _triBNormal = new THREE.Vector3();
+
+function trianglesOverlapSAT(triA, triB) {
+  _tmpAxes.length = 0;
+
+  triA.getNormal(_triANormal);
+  triB.getNormal(_triBNormal);
+  _tmpAxes.push(_triANormal.clone(), _triBNormal.clone());
+
+  const edgesA = [
+    _tmpEdge.clone().subVectors(triA.b, triA.a),
+    _tmpEdge.clone().subVectors(triA.c, triA.b),
+    _tmpEdge.clone().subVectors(triA.a, triA.c),
+  ];
+  const edgesB = [
+    _tmpEdge.clone().subVectors(triB.b, triB.a),
+    _tmpEdge.clone().subVectors(triB.c, triB.b),
+    _tmpEdge.clone().subVectors(triB.a, triB.c),
+  ];
+
+  for (const ea of edgesA) {
+    for (const eb of edgesB) {
+      _tmpAxis.crossVectors(ea, eb);
+      if (_tmpAxis.lengthSq() > 1e-10) _tmpAxes.push(_tmpAxis.clone().normalize());
+    }
+  }
+
+  const ptsA = [triA.a, triA.b, triA.c];
+  const ptsB = [triB.a, triB.b, triB.c];
+
+  for (const axis of _tmpAxes) {
+    let minA = Infinity, maxA = -Infinity;
+    let minB = Infinity, maxB = -Infinity;
+
+    for (const p of ptsA) {
+      const proj = p.dot(axis);
+      minA = Math.min(minA, proj);
+      maxA = Math.max(maxA, proj);
+    }
+    for (const p of ptsB) {
+      const proj = p.dot(axis);
+      minB = Math.min(minB, proj);
+      maxB = Math.max(maxB, proj);
+    }
+
+    if (maxA < minB || maxB < minA) return false; // separating axis
+  }
+  return true;
+}
+
+
+// ------------------------------ FUNCTIONS -------------------------------- //
 let selectedMesh = null;
 
 // document.getElementById('modeSelector').addEventListener('change', (e) => {
 //   transformControls.setMode(e.target.value);
 // });
+
+function exportCombinedSTL(){
+  if(!loadedMeshes.length) return;
+  const meshesToExport = loadedMeshes.map((mesh) =>{
+    const geo = mesh.geometry.clone();
+    mesh.updateMatrixWorld(true);
+    geo.applyMatrix4(mesh.matrixWorld);
+    return new THREE.Mesh(geo);
+  });
+
+  const exportScene = new THREE.Scene();
+  meshesToExport.forEach((mesh) => exportScene.add(mesh));
+
+  const stlData = exporter.parse(exportScene, { binary: true });
+  const blob = new Blob([stlData], { type: 'application/octed-stream' });
+  
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `combined_${new Date().toISOString().replace(/[:.]/g, '-')}.stl`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+
 
 function fitCameraToAllObjects() {
   if (loadedMeshes.length === 0) return;
@@ -170,9 +257,12 @@ function loadScrews() {
   // });
     loader.load(
       "resources/m12_screw_detailed.stl",
+      // "resources/m12_screw_BC_v3.stl",
       function (geometry) {
         for (let i=0; i< screwPoses.length; i+=1){
-          if(i===0) continue;
+          // skip the first pose if the pose is of the world or the bin
+          // dont skip if the input data is only poses of screws
+          // if(i===0) continue;
           // NOTE: super important to say baseMaterial.clone() otherwise the 
           // colour of all the models gets linked to baseMaterial
           const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
@@ -200,8 +290,68 @@ function loadScrews() {
         fitCameraToAllObjects();
       }
     );
-
   }
+  
+function loadScrewsOBJ() {
+  // console.log (screwPoses);
+  let screw_count = 0;
+  // let positionOffset = 0;
+  // let angleOffset = 0;
+  // // read m12 screw model
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xcccccc,
+    specular: 0x444444,
+    shininess: 200,
+  });
+  const objectAxes = new THREE.AxesHelper(50);
+  objectAxes.visible = false;
+  // const baseMaterial = new THREE.MeshBasicMaterial({
+  //   color: 0xcccccc,
+  // });
+  objLoader.load(
+    // "resources/m12_screw_detailed.stl",
+    "resources/m12_screw_bounding_cylinder_vhacd.obj",
+    function (obj) {
+      obj.traverse((child) => {
+        if (!child.isMesh) return;
+        // Ensure each mesh has its own material instance.
+        child.material = baseMaterial.clone();
+
+        for (let i = 0; i < screwPoses.length; i += 1) {
+          if (i === 0) continue;
+          // NOTE: super important to say baseMaterial.clone() otherwise the 
+          // colour of all the models gets linked to baseMaterial
+          const mesh = child.clone();
+          mesh.material = baseMaterial.clone();
+          mesh.add(objectAxes.clone());
+          // mesh.name = "screw_" + screw_count;
+          mesh.name = `screw_${screw_count}`;
+          
+          mesh.position.x = screwPoses[i].position.x * 1000;
+          mesh.position.y = screwPoses[i].position.y * 1000;
+          mesh.position.z = screwPoses[i].position.z * 1000;
+          mesh.rotation.x = screwPoses[i].orientation.rx;
+          mesh.rotation.y = screwPoses[i].orientation.ry;
+          mesh.rotation.z = screwPoses[i].orientation.rz;
+          
+          scene.add(mesh);
+          mesh.arrow = attachVector(mesh);
+          mesh.arrow.visible = false;
+          loadedMeshes.push(mesh);
+          addModelToList(mesh.name, mesh);
+          // positionOffset += 50;
+          // angleOffset += Math.PI/6;
+          // angleOffset += 30;
+          screw_count += 1;
+        }
+      });
+      
+      fitCameraToAllObjects();
+
+    }
+  );
+}
+
 
 
 function loadBin(){
@@ -210,12 +360,14 @@ function loadBin(){
     specular: 0x444444,
     shininess: 200,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.8,
   });
   const objectAxes = new THREE.AxesHelper(50);
   objectAxes.visible = false;
   loader.load(
-    "resources/rectangular_box.STL",
+    // "resources/rectangular_box.STL",
+    // "resources/solid_ikea_bin_for_simulation_v3.STL",
+    "resources/solid_ikea_bin_for_simulation_v3.1.STL",
     function (geometry){
       const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
       mesh.add(objectAxes.clone());
@@ -242,6 +394,9 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
     loadSTL(files[i]);
   }
 });
+
+document.getElementById('exportCombined').addEventListener('click', exportCombinedSTL);
+
 
 // const raycaster = new THREE.Raycaster();
 // const mouse = new THREE.Vector2();
@@ -308,10 +463,12 @@ function onPointerMove(event) {
     hoverLabel.style.display = hoverLabel.textContent ? 'block' : 'none';
     
     // --- display pose ---
-    const euler = new THREE.Euler();
-    euler.setFromQuaternion(obj.quaternion);
-    hoverLabel.innerHTML += "<br>" + "<span style='font-size: 12px;'>Pos: " + `${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)}` + "</span>";
-    hoverLabel.innerHTML += "<br>" + "<span style='font-size: 12px;'>Rot: " + `${(euler.x*180/Math.PI).toFixed(2)}, ${(euler.y*180/Math.PI).toFixed(2)}, ${(euler.z*180/Math.PI).toFixed(2)}` + "</span>";
+    if (0){
+      const euler = new THREE.Euler();
+      euler.setFromQuaternion(obj.quaternion);
+      hoverLabel.innerHTML += "<br>" + "<span style='font-size: 12px;'>Pos: " + `${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)}` + "</span>";
+      hoverLabel.innerHTML += "<br>" + "<span style='font-size: 12px;'>Rot: " + `${(euler.x*180/Math.PI).toFixed(2)}, ${(euler.y*180/Math.PI).toFixed(2)}, ${(euler.z*180/Math.PI).toFixed(2)}` + "</span>";
+    }
 
     // --- colour swap --- 
     if (highlightedObject !== obj) {
@@ -367,9 +524,11 @@ function onMouseDown(event){
   if (intersections.length > 0) {
     const selectedObject = intersections[0].object;
     if (selectedObject.type != "Mesh") return;
+
+    let debugString = '';
     // const color = new THREE.Color(Math.random(), Math.random(), Math.random());
     // selectedObject.material.color = color;
-    console.log(`${selectedObject.name} selected!`);
+    debugString += `${selectedObject.name} selected!\n`;
     selectedObject.children[0].visible = !selectedObject.children[0].visible;
     // selectedObject.material.wireframe = !selectedObject.material.wireframe;
     // selectedObject.material.emissiveIntensity = 0.2;
@@ -387,14 +546,24 @@ function onMouseDown(event){
     // const pos = new THREE.Vector3();
     const pos = selectedObject.position;
     euler.setFromQuaternion(selectedObject.quaternion);
-    console.log(
-      'position:\n', pos.x.toFixed(2), pos.y.toFixed(2), pos.z.toFixed(2),
-      '\norientation:\n', (euler.x*180/Math.PI).toFixed(2), (euler.y*180/Math.PI).toFixed(2), (euler.z*180/Math.PI).toFixed(2));
+    debugString += 
+      'position: ' + `${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}` +
+      '\norientation: ' + `${(euler.x*180/Math.PI).toFixed(2)}, ${(euler.y*180/Math.PI).toFixed(2)}, ${(euler.z*180/Math.PI).toFixed(2)}` + '\n';
     // console.log(selectedObject.position);
     // console.log(euler);
 
     // --- calculate relative pose difference to other screws ---
     pose_diff(selectedObject);
+
+    if (!event.ctrlKey) {
+      console.log(debugString);
+      return;
+    } else {
+      // const hits = findIntersections(selectedObject);
+      const hits = preciseIntersections(selectedObject);
+      debugString += 'intersects with: ' + hits.map(o=>o.name);
+      console.log(debugString);
+    }
   }
 }
 
@@ -403,6 +572,55 @@ function pose_diff(selObj){
   const objIdx = loadedMeshes.findIndex(o => o.uuid === selObj.uuid);
   matPrint(selObj.matrixWorld);
 }
+
+function worldBoundingBox(mesh){
+  mesh.geometry.computeBoundingBox();
+  const box = mesh.geometry.boundingBox.clone();
+  mesh.updateMatrixWorld(true);
+  return box.applyMatrix4(mesh.matrixWorld);
+}
+
+function findIntersections(targetMesh){
+  const targetBox = worldBoundingBox(targetMesh);
+  const collisions = [];
+  for (const mesh of loadedMeshes) {
+    if(mesh === targetMesh || mesh.type !== 'Mesh' || !mesh.visible) continue;
+    const otherBox = worldBoundingBox(mesh);
+    if (targetBox.intersectsBox(otherBox)) collisions.push(mesh);
+  }
+  return collisions;
+}
+
+
+function trianglesIntersect(a, b) {
+  const triA = new THREE.Triangle(), triB = new THREE.Triangle();
+  const posA = a.attributes.position, posB = b.attributes.position;
+
+  a.computeBoundingSphere(); b.computeBoundingSphere();
+  if (!a.boundingSphere.intersectsSphere(b.boundingSphere)) return false;
+
+  for (let i = 0; i < posA.count; i += 3) {
+    triA.setFromAttributeAndIndices(posA, i, i + 1, i + 2);
+    for (let j = 0; j < posB.count; j += 3) {
+      triB.setFromAttributeAndIndices(posB, j, j + 1, j + 2);
+      // if (triA.intersectsTriangle(triB)) return true;
+      if (trianglesOverlapSAT(triA, triB)) return true;
+    }
+  }
+  return false;
+}
+
+function preciseIntersections(targetMesh) {
+  const targetGeom = targetMesh.geometry.clone().applyMatrix4(targetMesh.matrixWorld);
+  const hits = [];
+  for (const mesh of loadedMeshes) {
+    if (mesh === targetMesh || mesh.type !== 'Mesh' || !mesh.visible) continue;
+    const otherGeom = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
+    if (trianglesIntersect(targetGeom, otherGeom)) hits.push(mesh);
+  }
+  return hits;
+}
+
 
 function matPrint(mat){
   const sigFigs = 2;
@@ -466,6 +684,8 @@ window.addEventListener('resize', () => {
 loadBin();
 
 loadScrews();
+
+// loadScrewsOBJ();
 
 function animate() {
   requestAnimationFrame(animate);

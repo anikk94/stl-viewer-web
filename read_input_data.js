@@ -5,9 +5,6 @@ import * as THREE from 'three';
 // const loadedMeshes = [];
 // const modelList = document.getElementById('modelList');
 
-
-
-
 // let screw_count = 0
 // // read m12 screw model
 // loader.load(
@@ -103,7 +100,15 @@ let poseText = "";
 // plant.get_name() plant
 // plant.num_bodies() 36
 // plant.num_bodies() 36
-const filePath = "data/screw_poses_20251125-123600.txt";
+// const filePath = "data/screw_poses_20251125-123600.txt";
+// const filePath = "data/pybullet/final_states_20251228_1.txt";
+// const filePath = "data/pybullet/final_states_20251228_2.txt";
+// const filePath = "data/pybullet/final_states_20251229_1.txt";
+// const filePath = "data/pybullet/final_states_20251229_2.txt";
+// const filePath = "data/pybullet/final_states_20251229_3.txt";
+// const filePath = "data/pybullet/final_states_20251229_4.txt";
+// const filePath = "data/pybullet/final_states_20251229_5.txt";
+const filePath = "data/pybullet/final_states_20251229_6.txt";
 
 // fetch(filePath)
 //     .then(response => {
@@ -205,7 +210,7 @@ function parseScrewPoses(text){
 export const screwPoses = parseScrewPoses(text);
 
 // const screwPoses = parseScrewPoses(text.slice(0, 328));
-// console.log('Parsed poses:', screwPoses);
+console.log('Parsed poses:', screwPoses);
 // console.log(text.slice(0, 328)); // first 2 entries
 
 
