@@ -17,18 +17,27 @@
       height: 100vh;
       display: block;
     }
-    #sidebar {
+    .sidebar-panel {
       position: absolute;
       top: 10px;
-      right: 10px;
       background: rgba(0,0,0,0.7);
       padding: 10px;
       border-radius: 8px;
       max-height: 90vh;
       overflow-y: auto;
+      box-sizing: border-box;
+    }
+    #sidebar {
+      right: 10px;
       width: 220px;
     }
-    #sidebar h2 { 
+    #optionsSidebar {
+      left: 10px;
+      top: 130px;
+      width: 15vw;
+      min-width: 180px;
+    }
+    .sidebar-panel h2 { 
       margin-top: 0;
       font-size: 16px;
       text-align: center;
@@ -53,6 +62,20 @@
     }
     .model-entry button:hover { 
       background: #555;
+    }
+    .option-button {
+      width: 100%;
+      margin: 6px 0;
+      padding: 8px 10px;
+      background: #222;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .option-button:hover {
+      background: #333;
     }
     #modeSelector { 
       width: 100%;
@@ -89,7 +112,16 @@
   <button id="exportCombined" style="position:absolute;z-index:10;top:10px;left: 300px;">Export combined STL</button>
   <br>
   <p id="mouse-info">mouse position:<br>x: <span id="mouse-x">0</span><br>y: <span id="mouse-y">0</span></p>
-  <div id="sidebar">
+  
+  <div id="optionsSidebar" class="sidebar-panel">
+    <h2>Operations</h2>
+    <button class="option-button">Option 1</button>
+    <button class="option-button">Option 2</button>
+    <button class="option-button">Option 3</button>
+    <button class="option-button">Option 4</button>
+  </div>
+
+  <div id="sidebar" class="sidebar-panel">
     <h2>Loaded Models</h2>
     <div id="modelList"></div>
     <!-- <label for="modeSelector">Transform Mode:</label>

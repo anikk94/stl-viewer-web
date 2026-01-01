@@ -108,7 +108,11 @@ let poseText = "";
 // const filePath = "data/pybullet/final_states_20251229_3.txt";
 // const filePath = "data/pybullet/final_states_20251229_4.txt";
 // const filePath = "data/pybullet/final_states_20251229_5.txt";
-const filePath = "data/pybullet/final_states_20251229_6.txt";
+
+// const filePath = "data/pybullet/final_states_20251229_6.txt";
+const filePath = "data/real/scanned_states_20251231_1.txt";
+
+
 
 // fetch(filePath)
 //     .then(response => {
@@ -209,8 +213,9 @@ function parseScrewPoses(text){
 
 export const screwPoses = parseScrewPoses(text);
 
+// print out the parsed information -------------------------------------------
 // const screwPoses = parseScrewPoses(text.slice(0, 328));
-console.log('Parsed poses:', screwPoses);
+// console.log('Parsed poses:', screwPoses);
 // console.log(text.slice(0, 328)); // first 2 entries
 
 

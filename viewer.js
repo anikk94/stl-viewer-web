@@ -556,13 +556,13 @@ function onMouseDown(event){
     pose_diff(selectedObject);
 
     if (!event.ctrlKey) {
-      console.log(debugString);
+      // console.log(debugString);
       return;
     } else {
       // const hits = findIntersections(selectedObject);
       const hits = preciseIntersections(selectedObject);
       debugString += 'intersects with: ' + hits.map(o=>o.name);
-      console.log(debugString);
+      // console.log(debugString);
     }
   }
 }
@@ -632,7 +632,7 @@ function matPrint(mat){
   for (let i=0;i<4;i++){
     matStr += `${mat[i].toFixed(sigFigs).padStart(padW)} ${mat[i+4].toFixed(sigFigs).padStart(padW)} ${mat[i+8].toFixed(sigFigs).padStart(padW)} ${mat[i+12].toFixed(sigFigs).padStart(padW)}\n`
   }
-  console.log(matStr);
+  // console.log(matStr);
 }
 
 function attachVector(obj){
