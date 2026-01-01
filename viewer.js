@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
-import { screwPoses } from "./read_input_data.js";
+import { screwPoses, getScrewPoses } from "./read_input_data.js";
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
@@ -269,14 +269,14 @@ function loadScrews() {
           mesh.add(objectAxes.clone());
           // mesh.name = "screw_" + screw_count;
           mesh.name = `screw_${screw_count}`;
-          mesh.position.x = screwPoses[i].position.x*1000; 
-          mesh.position.y = screwPoses[i].position.y*1000; 
-          mesh.position.z = screwPoses[i].position.z*1000; 
+
+          mesh.position.x = screwPoses[i].position.x*1000; // m to mm
+          mesh.position.y = screwPoses[i].position.y*1000; // m to mm
+          mesh.position.z = screwPoses[i].position.z*1000; // m to mm
           mesh.rotation.x = screwPoses[i].orientation.rx;
           mesh.rotation.y = screwPoses[i].orientation.ry;
           mesh.rotation.z = screwPoses[i].orientation.rz;
 
-          
           scene.add(mesh);
           mesh.arrow = attachVector(mesh);
           mesh.arrow.visible = false;
@@ -352,7 +352,144 @@ function loadScrewsOBJ() {
   );
 }
 
+async function loadReferenceScrews() {
+  // console.log (screwPoses);
+  let screw_count = 0;
+  // let positionOffset = 0;
+  // let angleOffset = 0;
+  // // read m12 screw model
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xcccccc,
+    specular: 0x444444,
+    shininess: 200,
+  });
+  const objectAxes = new THREE.AxesHelper(50);
+  objectAxes.visible = false;
+  // const baseMaterial = new THREE.MeshBasicMaterial({
+  //   color: 0xcccccc,
+  // });
 
+  const filepath = "data/pybullet/final_states_20251229_6.txt";
+  const screwPoses = await getScrewPoses(filepath);
+  console.log(screwPoses);
+
+  loader.load(
+    "resources/m12_screw_detailed.stl",
+    // "resources/m12_screw_BC_v3.stl",
+    function (geometry) {
+      for (let i = 0; i < screwPoses.length; i += 1) {
+        // skip the first pose if the pose is of the world or the bin
+        // dont skip if the input data is only poses of screws
+        // if(i===0) continue;
+        // NOTE: super important to say baseMaterial.clone() otherwise the 
+        // colour of all the models gets linked to baseMaterial
+        const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
+        mesh.add(objectAxes.clone());
+        // mesh.name = "screw_" + screw_count;
+        mesh.name = `r_screw_${screw_count+1}`;
+
+        mesh.position.x = screwPoses[i].position.x * 1000; // m to mm
+        mesh.position.y = screwPoses[i].position.y * 1000; // m to mm
+        mesh.position.z = screwPoses[i].position.z * 1000; // m to mm
+        mesh.rotation.x = screwPoses[i].orientation.rx;
+        mesh.rotation.y = screwPoses[i].orientation.ry;
+        mesh.rotation.z = screwPoses[i].orientation.rz;
+
+        scene.add(mesh);
+        mesh.arrow = attachVector(mesh);
+        mesh.arrow.visible = false;
+        loadedMeshes.push(mesh);
+        addModelToList(mesh.name, mesh);
+        // positionOffset += 50;
+        // angleOffset += Math.PI/6;
+        // angleOffset += 30;
+        screw_count += 1;
+      }
+      fitCameraToAllObjects();
+    }
+  );
+}
+
+async function loadMeasuredScrews(){
+  // console.log (screwPoses);
+  let screw_count = 0;
+  // let positionOffset = 0;
+  // let angleOffset = 0;
+  // // read m12 screw model
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xcccccc,
+    specular: 0x444444,
+    shininess: 200,
+  });
+  const objectAxes = new THREE.AxesHelper(50);
+  objectAxes.visible = false;
+  // const baseMaterial = new THREE.MeshBasicMaterial({
+  //   color: 0xcccccc,
+  // });
+
+  const filepath = "data/real/scanned_states_20251231_1.txt";
+  const screwPoses = await getScrewPoses(filepath);
+  console.log(screwPoses);
+
+  loader.load(
+    "resources/m12_screw_detailed.stl",
+    // "resources/m12_screw_BC_v3.stl",
+    function (geometry) {
+      for (let i = 0; i < screwPoses.length; i += 1) {
+        // skip the first pose if the pose is of the world or the bin
+        // dont skip if the input data is only poses of screws
+        // if(i===0) continue;
+        // NOTE: super important to say baseMaterial.clone() otherwise the 
+        // colour of all the models gets linked to baseMaterial
+        let mesh = new THREE.Mesh(geometry, baseMaterial.clone());
+        mesh.add(objectAxes.clone());
+        // mesh.name = "screw_" + screw_count;
+        mesh.name = `m_screw_${screw_count+1}`;
+
+        mesh.position.x = screwPoses[i].position.x * 1000; // m to mm
+        mesh.position.y = screwPoses[i].position.y * 1000; // m to mm
+        mesh.position.z = screwPoses[i].position.z * 1000; // m to mm
+        mesh.rotation.x = screwPoses[i].orientation.rx;
+        mesh.rotation.y = screwPoses[i].orientation.ry;
+        mesh.rotation.z = screwPoses[i].orientation.rz;
+
+        mesh = bring_part_closer_to_bin(mesh);
+
+        scene.add(mesh);
+        mesh.arrow = attachVector(mesh);
+        mesh.arrow.visible = false;
+        loadedMeshes.push(mesh);
+        addModelToList(mesh.name, mesh);
+        // positionOffset += 50;
+        // angleOffset += Math.PI/6;
+        // angleOffset += 30;
+        screw_count += 1;
+      }
+      fitCameraToAllObjects();
+    }
+  );
+}
+
+function bring_part_closer_to_bin(mesh){
+  // translate and rotate part by a defined amount
+
+  const translation = new THREE.Vector3(0, 600, 0); // mm
+  mesh.position.add(translation);
+
+  // const rotation = new THREE.Euler(0, 0, 0); // radians
+  // mesh.rotation.x += rotation.x;
+  // mesh.rotation.y += rotation.y;
+  // mesh.rotation.z += rotation.z;
+
+  //  const rot = new THREE.Euler(0, 0, 3.14);
+  //  const q = new THREE.Quaternion().setFromEuler(rot);
+
+  //  mesh.position.applyQuaternion(q);
+
+  
+  // return the translated mesh
+  return mesh
+}
 
 function loadBin(){
   const baseMaterial = new THREE.MeshPhongMaterial({
@@ -683,9 +820,15 @@ window.addEventListener('resize', () => {
 
 loadBin();
 
-loadScrews();
+// loadScrews();
 
 // loadScrewsOBJ();
+
+loadReferenceScrews().catch((err) => {
+  console.error('Failed to load reference screws', err);
+});
+
+loadMeasuredScrews();
 
 function animate() {
   requestAnimationFrame(animate);

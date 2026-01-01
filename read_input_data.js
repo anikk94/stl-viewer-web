@@ -21,98 +21,9 @@ import * as THREE from 'three';
 //         loadedMeshes.push(mesh);
 //         fitCameraToAllObjects();
 //     })
+
 // read list of poses of screws in bin (simulation or real bin)
-let poseText = "";
-
-// const filePath = "data/screw_poses_20251021_1.txt";
-
-// const filePath = "data/screw_poses_20251120_1.txt";
-
-//  ----------0. world ----------
-// position: 
-//   x: 0
-//   y: 0
-//   z: 0
-// rotation
-// [
-//   1, 0, 0
-//   0, 1, 0
-//   0, 0, 1
-// ]
-//  ----------1. bottom ----------
-// position: 
-//   x: 0
-//   y: 0
-//   z: 0
-// rotation
-// [
-//   1, 0, 0
-//   0, 1, 0
-//   0, 0, 1
-// ]
-//  ----------2. front_wall ----------
-// position: 
-//   x: 0
-//   y: -0.0595
-//   z: 0.024
-// rotation
-// [
-//   1, 0, 0
-//   0, 1, 0
-//   0, 0, 1
-// ]
-//  ----------3. back_wall ----------
-// position: 
-//   x: 0
-//   y: 0.0595
-//   z: 0.024
-// rotation
-// [
-//   1, 0, 0
-//   0, 1, 0
-//   0, 0, 1
-// ]
-//  ----------4. left_wall ----------
-// position: 
-//   x: -0.0715
-//   y: 0
-//   z: 0.024
-// rotation
-// [
-//   1, 0, 0
-//   0, 1, 0
-//   0, 0, 1
-// ]
-//  ----------5. right_wall ----------
-// position: 
-//   x: 0.0715
-//   y: 0
-//   z: 0.024
-// rotation
-// [
-//   1, 0, 0
-//   0, 1, 0
-//   0, 0, 1
-// ]
-// [2025-11-25 17:28:39] Simulation time: 0.1s
-// [2025-11-25 17:34:35] Simulation time: 10s
-// plant_context.get_time() 10
-// plant.get_name() plant
-// plant.num_bodies() 36
-// plant.num_bodies() 36
-// const filePath = "data/screw_poses_20251125-123600.txt";
-// const filePath = "data/pybullet/final_states_20251228_1.txt";
-// const filePath = "data/pybullet/final_states_20251228_2.txt";
-// const filePath = "data/pybullet/final_states_20251229_1.txt";
-// const filePath = "data/pybullet/final_states_20251229_2.txt";
-// const filePath = "data/pybullet/final_states_20251229_3.txt";
-// const filePath = "data/pybullet/final_states_20251229_4.txt";
-// const filePath = "data/pybullet/final_states_20251229_5.txt";
-
-// const filePath = "data/pybullet/final_states_20251229_6.txt";
-const filePath = "data/real/scanned_states_20251231_1.txt";
-
-
+// let poseText = "";
 
 // fetch(filePath)
 //     .then(response => {
@@ -132,6 +43,22 @@ const filePath = "data/real/scanned_states_20251231_1.txt";
 
 // console.log("PoseText: ", poseText);
 
+// ---
+
+// const filePath = "data/screw_poses_20251021_1.txt";
+// const filePath = "data/screw_poses_20251120_1.txt";
+// const filePath = "data/screw_poses_20251125-123600.txt";
+
+// const filePath = "data/pybullet/final_states_20251228_1.txt";
+// const filePath = "data/pybullet/final_states_20251228_2.txt";
+// const filePath = "data/pybullet/final_states_20251229_1.txt";
+// const filePath = "data/pybullet/final_states_20251229_2.txt";
+// const filePath = "data/pybullet/final_states_20251229_3.txt";
+// const filePath = "data/pybullet/final_states_20251229_4.txt";
+// const filePath = "data/pybullet/final_states_20251229_5.txt";
+// const filePath = "data/pybullet/final_states_20251229_6.txt";
+
+const filePath = "data/real/scanned_states_20251231_1.txt";
 
 async function loadText(path){
     const res = await fetch(path);
@@ -209,6 +136,15 @@ function parseScrewPoses(text){
     return items;
 }
 
+// TEST -----------------------------------------------------------------------
+
+export async function getScrewPoses(input_filepath=""){
+    const text = await loadText(input_filepath);
+    
+    const screwPoses = parseScrewPoses(text);
+
+    return screwPoses;
+}
 
 
 export const screwPoses = parseScrewPoses(text);
@@ -220,3 +156,79 @@ export const screwPoses = parseScrewPoses(text);
 
 
 // give models unique name and add them to scene as individuals (group?)
+
+
+
+// some input files have this part for the bin included in the part poses
+//  ----------0. world ----------
+// position: 
+//   x: 0
+//   y: 0
+//   z: 0
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------1. bottom ----------
+// position: 
+//   x: 0
+//   y: 0
+//   z: 0
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------2. front_wall ----------
+// position: 
+//   x: 0
+//   y: -0.0595
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------3. back_wall ----------
+// position: 
+//   x: 0
+//   y: 0.0595
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------4. left_wall ----------
+// position: 
+//   x: -0.0715
+//   y: 0
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+//  ----------5. right_wall ----------
+// position: 
+//   x: 0.0715
+//   y: 0
+//   z: 0.024
+// rotation
+// [
+//   1, 0, 0
+//   0, 1, 0
+//   0, 0, 1
+// ]
+// [2025-11-25 17:28:39] Simulation time: 0.1s
+// [2025-11-25 17:34:35] Simulation time: 10s
+// plant_context.get_time() 10
+// plant.get_name() plant
+// plant.num_bodies() 36
+// plant.num_bodies() 36
