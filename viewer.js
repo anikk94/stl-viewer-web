@@ -67,6 +67,16 @@ const objLoader = new OBJLoader();
 const loader = new STLLoader();
 const loadedMeshes = [];
 const modelList = document.getElementById('modelList');
+const annotatePartButton = document.getElementById('annotatePart');
+const renameModal = document.getElementById('renameModal');
+const renameCurrentName = document.getElementById('renameCurrentName');
+const renameInput = document.getElementById('renameInput');
+const renameSubmit = document.getElementById('renameSubmit');
+const renameCancel = document.getElementById('renameCancel');
+const renameError = document.getElementById('renameError');
+
+let renameMode = false;
+let renameTarget = null;
 
 const exporter = new STLExporter();
 
@@ -202,6 +212,9 @@ function addModelToList(fileName, mesh) {
   div.appendChild(nameSpan);
   div.appendChild(removeButton);
   modelList.appendChild(div);
+
+  mesh.userData = mesh.userData || {};
+  mesh.userData.nameSpan = nameSpan;
 }
 
 function loadSTL(file) {
@@ -370,6 +383,8 @@ async function loadReferenceScrews() {
   // });
 
   const filepath = "data/pybullet/final_states_20251229_6.txt";
+  // const filepath = "data/pybullet/final_states_20260101_2.txt";
+
   const screwPoses = await getScrewPoses(filepath);
   console.log(screwPoses);
 
@@ -452,7 +467,7 @@ async function loadMeasuredScrews(){
         mesh.rotation.x = screwPoses[i].orientation.rx;
         mesh.rotation.y = screwPoses[i].orientation.ry;
         mesh.rotation.z = screwPoses[i].orientation.rz;
-
+        
         mesh = bring_part_closer_to_bin(mesh);
 
         scene.add(mesh);
@@ -473,8 +488,19 @@ async function loadMeasuredScrews(){
 function bring_part_closer_to_bin(mesh){
   // translate and rotate part by a defined amount
 
-  const translation = new THREE.Vector3(0, 600, 0); // mm
+  const translation = new THREE.Vector3(
+    // -100, // x
+    100, // x
+    790,  // y
+    0     // z
+  );
   mesh.position.add(translation);
+  
+  // rotating the scanned parts is not a good plan
+  // const angle = -90*(Math.PI/180);
+  // mesh.position.applyAxisAngle(new THREE.Vector3(0, 0, 1), angle);
+  // const translation2 = new THREE.Vector3(200, 0, 0); // mm
+  // mesh.position.add(translation2);
 
   // const rotation = new THREE.Euler(0, 0, 0); // radians
   // mesh.rotation.x += rotation.x;
@@ -533,6 +559,40 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 });
 
 document.getElementById('exportCombined').addEventListener('click', exportCombinedSTL);
+
+if (annotatePartButton) {
+  annotatePartButton.addEventListener('click', () => {
+    if (!renameMode) startRenameMode();
+  });
+}
+
+if (renameSubmit) {
+  renameSubmit.addEventListener('click', () => {
+    if (!renameTarget) {
+      closeRenameModal();
+      endRenameMode();
+      return;
+    }
+    const newName = renameInput.value.trim();
+    if (!newName) {
+      renameError.textContent = 'Name cannot be empty.';
+      return;
+    }
+    renameTarget.name = newName;
+    if (renameTarget.userData && renameTarget.userData.nameSpan) {
+      renameTarget.userData.nameSpan.textContent = newName;
+    }
+    closeRenameModal();
+    endRenameMode();
+  });
+}
+
+if (renameCancel) {
+  renameCancel.addEventListener('click', () => {
+    closeRenameModal();
+    endRenameMode();
+  });
+}
 
 
 // const raycaster = new THREE.Raycaster();
@@ -644,6 +704,26 @@ function onPointerMove(event) {
 //
 // ----------------------------------------------------------------------------
 function onMouseDown(event){
+  if (renameModal && !renameModal.classList.contains('hidden')) {
+    return;
+  }
+
+  if (renameMode) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const coords = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    rc2.setFromCamera(coords, camera);
+    const intersections = rc2.intersectObjects(loadedMeshes, true);
+    const hit = intersections.find((entry) => entry.object.type === "Mesh");
+    if (hit) {
+      endRenameMode();
+      openRenameModal(hit.object);
+    }
+    return;
+  }
+
   // const coords = new THREE.Vector2(
     //   -1 + 2 * (event.clientX / renderer.domElement.clientWidth),
     //   1 - 2 * (event.clientY / renderer.domElement.clientHeight),  
@@ -702,6 +782,37 @@ function onMouseDown(event){
       // console.log(debugString);
     }
   }
+}
+
+function startRenameMode() {
+  if (!annotatePartButton) return;
+  renameMode = true;
+  annotatePartButton.classList.add('active');
+  renderer.domElement.style.cursor = 'crosshair';
+}
+
+function endRenameMode() {
+  if (!annotatePartButton) return;
+  renameMode = false;
+  annotatePartButton.classList.remove('active');
+  renderer.domElement.style.cursor = '';
+}
+
+function openRenameModal(mesh) {
+  if (!renameModal) return;
+  renameTarget = mesh;
+  renameCurrentName.textContent = mesh.name || '';
+  renameInput.value = mesh.name || '';
+  renameError.textContent = '';
+  renameModal.classList.remove('hidden');
+  renameInput.focus();
+  renameInput.select();
+}
+
+function closeRenameModal() {
+  if (!renameModal) return;
+  renameModal.classList.add('hidden');
+  renameTarget = null;
 }
 
 function pose_diff(selObj){
