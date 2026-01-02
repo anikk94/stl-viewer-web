@@ -4,6 +4,14 @@ function mouse_position(){
     console.log("[" + now.toLocaleTimeString() + "]" + " util::mouse_position()");
 }
 
+export function getRelativeDistances(screwPoses){
+    console.log("getRelativeDistances");
+    console.log(screwPoses);
+}
+
+export function getRelativeAngles(screwPoses){
+    console.log("getRelativeAngles");
+}
 
 
 // main
@@ -15,4 +23,6 @@ document.addEventListener('mousemove', function(event){
     mouse_pos_y_label.innerHTML=event.clientY;
     // console.log(pos.x, pos.y);
 });
+
 mouse_position();
+

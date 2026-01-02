@@ -6,7 +6,6 @@ import { screwPoses, getScrewPoses } from "./read_input_data.js";
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
-
 // THREE JS SETUP
 const canvas = document.getElementById('viewer');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -68,6 +67,7 @@ const loader = new STLLoader();
 const loadedMeshes = [];
 const modelList = document.getElementById('modelList');
 const annotatePartButton = document.getElementById('annotatePart');
+const relativeMeasurementsButton = document.getElementById('relativeMeasurements');
 const renameModal = document.getElementById('renameModal');
 const renameCurrentName = document.getElementById('renameCurrentName');
 const renameInput = document.getElementById('renameInput');
@@ -80,7 +80,10 @@ let renameTarget = null;
 
 const exporter = new STLExporter();
 
-
+// ============================================================================
+// ============================================================================
+// local impl for intersection detection 
+// -------------------------------------
 const _tmpAxes = [];
 const _tmpEdge = new THREE.Vector3();
 const _tmpAxis = new THREE.Vector3();
@@ -134,10 +137,34 @@ function trianglesOverlapSAT(triA, triB) {
   }
   return true;
 }
+// ============================================================================
+// ============================================================================
 
 
-// ------------------------------ FUNCTIONS -------------------------------- //
+// ------------------------------- local vars ------------------------------ //
 let selectedMesh = null;
+
+// const referenceScrewPosesFilepath = "data/pybullet/final_states_20251229_6.txt";
+// const measuredScrewPosesFilepath = "data/real/scanned_states_20251231_1.txt";
+// let referenceScrewPoses = [];
+// getScrewPoses(referenceScrewPosesFilepath)
+// .then((poses) => {
+//   referenceScrewPoses = poses;
+
+//   getRelativeDistances(referenceScrewPoses);
+//   getRelativeAngles(referenceScrewPoses);
+// })
+// .catch(console.error);
+// let measuredScrewPoses = [];
+// getScrewPoses(measuredScrewPosesFilepath)
+// .then((poses) => {
+//   measuredScrewPoses = poses;
+// })
+// .catch(console.error);
+
+
+
+// ------------------------------- FUNCTIONS ------------------------------- //
 
 // document.getElementById('modeSelector').addEventListener('change', (e) => {
 //   transformControls.setMode(e.target.value);
@@ -166,7 +193,6 @@ function exportCombinedSTL(){
 }
 
 
-
 function fitCameraToAllObjects() {
   if (loadedMeshes.length === 0) return;
   const box = new THREE.Box3();
@@ -183,9 +209,11 @@ function fitCameraToAllObjects() {
   controls.update();
 }
 
+
 function getRandomColor() {
   return new THREE.Color(Math.random(), Math.random(), Math.random());
 }
+
 
 function addModelToList(fileName, mesh) {
   const div = document.createElement('div');
@@ -217,6 +245,7 @@ function addModelToList(fileName, mesh) {
   mesh.userData.nameSpan = nameSpan;
 }
 
+
 function loadSTL(file) {
   const reader = new FileReader();
   reader.onload = function(event) {
@@ -231,6 +260,7 @@ function loadSTL(file) {
   };
   reader.readAsArrayBuffer(file);
 }
+
 
 function loadDefaultSTL(){
   loader.load(
@@ -252,12 +282,9 @@ function loadDefaultSTL(){
     })
 }
 
+
 function loadScrews() {
-  // console.log (screwPoses);
   let screw_count = 0;
-  // let positionOffset = 0;
-  // let angleOffset = 0;
-  // // read m12 screw model
   const baseMaterial = new THREE.MeshPhongMaterial({
     color: 0xcccccc,
     specular: 0x444444,
@@ -305,12 +332,9 @@ function loadScrews() {
     );
   }
   
+
 function loadScrewsOBJ() {
-  // console.log (screwPoses);
   let screw_count = 0;
-  // let positionOffset = 0;
-  // let angleOffset = 0;
-  // // read m12 screw model
   const baseMaterial = new THREE.MeshPhongMaterial({
     color: 0xcccccc,
     specular: 0x444444,
@@ -365,12 +389,9 @@ function loadScrewsOBJ() {
   );
 }
 
+
 async function loadReferenceScrews() {
-  // console.log (screwPoses);
   let screw_count = 0;
-  // let positionOffset = 0;
-  // let angleOffset = 0;
-  // // read m12 screw model
   const baseMaterial = new THREE.MeshPhongMaterial({
     color: 0xcccccc,
     specular: 0x444444,
@@ -386,7 +407,6 @@ async function loadReferenceScrews() {
   // const filepath = "data/pybullet/final_states_20260101_2.txt";
 
   const screwPoses = await getScrewPoses(filepath);
-  console.log(screwPoses);
 
   loader.load(
     "resources/m12_screw_detailed.stl",
@@ -425,12 +445,9 @@ async function loadReferenceScrews() {
   );
 }
 
+
 async function loadMeasuredScrews(){
-  // console.log (screwPoses);
   let screw_count = 0;
-  // let positionOffset = 0;
-  // let angleOffset = 0;
-  // // read m12 screw model
   const baseMaterial = new THREE.MeshPhongMaterial({
     color: 0xcccccc,
     specular: 0x444444,
@@ -444,7 +461,6 @@ async function loadMeasuredScrews(){
 
   const filepath = "data/real/scanned_states_20251231_1.txt";
   const screwPoses = await getScrewPoses(filepath);
-  console.log(screwPoses);
 
   loader.load(
     "resources/m12_screw_detailed.stl",
@@ -485,6 +501,7 @@ async function loadMeasuredScrews(){
   );
 }
 
+
 function bring_part_closer_to_bin(mesh){
   // translate and rotate part by a defined amount
 
@@ -516,6 +533,7 @@ function bring_part_closer_to_bin(mesh){
   // return the translated mesh
   return mesh
 }
+
 
 function loadBin(){
   const baseMaterial = new THREE.MeshPhongMaterial({
@@ -551,6 +569,9 @@ function loadBin(){
   )
 }
 
+
+
+// ----------------------------- EVENT LISTENERS ----------------------------//
 document.getElementById('fileInput').addEventListener('change', (e) => {
   const files = e.target.files;
   for (let i = 0; i < files.length; i++) {
@@ -593,6 +614,29 @@ if (renameCancel) {
     endRenameMode();
   });
 }
+
+if(relativeMeasurementsButton) {
+  relativeMeasurementsButton.addEventListener('click', ()=>{
+    console.log("relativeMeasurementsButton clicked!");
+    getRelativeDistances();
+  })
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    if (renameModal && !renameModal.classList.contains('hidden')) {
+      closeRenameModal();
+    }
+    if (renameMode) {
+      endRenameMode();
+    }
+  }
+  if (event.key === 'Enter') {
+    if (renameModal && !renameModal.classList.contains('hidden')) {
+      renameSubmit.click();
+    }
+  }
+});
 
 
 // const raycaster = new THREE.Raycaster();
@@ -772,18 +816,46 @@ function onMouseDown(event){
     // --- calculate relative pose difference to other screws ---
     pose_diff(selectedObject);
 
-    if (!event.ctrlKey) {
-      // console.log(debugString);
-      return;
-    } else {
-      // const hits = findIntersections(selectedObject);
-      const hits = preciseIntersections(selectedObject);
-      debugString += 'intersects with: ' + hits.map(o=>o.name);
-      // console.log(debugString);
-    }
+    // TODO
+    // if (!event.ctrlKey) {
+    //   // console.log(debugString);
+    //   return;
+    // } else {
+    //   // const hits = findIntersections(selectedObject);
+    //   const hits = preciseIntersections(selectedObject);
+    //   debugString += 'intersects with: ' + hits.map(o=>o.name);
+    //   // console.log(debugString);
+    // }
   }
 }
 
+
+function pose_diff(selObj){
+  // console.log(loadedMeshes);
+  const objIdx = loadedMeshes.findIndex(o => o.uuid === selObj.uuid);
+  // matPrint(selObj.matrixWorld);
+}
+
+
+function matPrint(mat){
+  const sigFigs = 2;
+  const padW = 6;
+  let matStr = "";
+  if(mat instanceof THREE.Matrix4){
+    mat = mat.elements;
+  } 
+  for (let i=0;i<4;i++){
+    matStr += `${mat[i].toFixed(sigFigs).padStart(padW)} \
+    ${mat[i+4].toFixed(sigFigs).padStart(padW)} \
+    ${mat[i+8].toFixed(sigFigs).padStart(padW)} \
+    ${mat[i+12].toFixed(sigFigs).padStart(padW)} \
+    \n`
+  }
+  console.log(matStr);
+}
+
+
+// annotate part / rename part --- start
 function startRenameMode() {
   if (!annotatePartButton) return;
   renameMode = true;
@@ -814,12 +886,8 @@ function closeRenameModal() {
   renameModal.classList.add('hidden');
   renameTarget = null;
 }
+// annotate part / rename part --- end
 
-function pose_diff(selObj){
-  // console.log(loadedMeshes);
-  const objIdx = loadedMeshes.findIndex(o => o.uuid === selObj.uuid);
-  matPrint(selObj.matrixWorld);
-}
 
 function worldBoundingBox(mesh){
   mesh.geometry.computeBoundingBox();
@@ -870,19 +938,6 @@ function preciseIntersections(targetMesh) {
 }
 
 
-function matPrint(mat){
-  const sigFigs = 2;
-  const padW = 6;
-  let matStr = "";
-  if(mat instanceof THREE.Matrix4){
-    mat = mat.elements;
-  } 
-  for (let i=0;i<4;i++){
-    matStr += `${mat[i].toFixed(sigFigs).padStart(padW)} ${mat[i+4].toFixed(sigFigs).padStart(padW)} ${mat[i+8].toFixed(sigFigs).padStart(padW)} ${mat[i+12].toFixed(sigFigs).padStart(padW)}\n`
-  }
-  // console.log(matStr);
-}
-
 function attachVector(obj){
   const axis = new THREE.Vector3(-1, 0, 0);
   const direction = axis.applyQuaternion(obj.quaternion);
@@ -896,6 +951,21 @@ function attachVector(obj){
   return arrowHelper;
 }
 
+function getRelativeDistances(){
+  console.log("getRelativeDistances()")
+  const measuredScrews = loadedMeshes.filter(
+    (mesh) => mesh.name && mesh.name.startsWith('m_screw')
+  );
+  const referenceScrews = loadedMeshes.filter(
+    (mesh)=> mesh.name && mesh.name.startsWith('r_screw')
+  );
+
+  for (let r=0;r<referenceScrews.length;r++){
+    let dist = referenceScrews[0].position.distanceTo(referenceScrews[r].position);
+    console.log(`distance from ${referenceScrews[0].name} to ${referenceScrews[r].name} = ${dist}`);
+  }
+
+}
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %                                                                          %
