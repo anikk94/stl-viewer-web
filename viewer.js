@@ -261,6 +261,37 @@ function loadSTL(file) {
   reader.readAsArrayBuffer(file);
 }
 
+function loadThisSTL(filepath=""){
+  const baseMaterial = new THREE.MeshPhongMaterial({
+    color: 0xcccccc,
+    specular: 0x444444,
+    shininess: 200,
+  });
+  loader.load(
+    "resources/bin_of_screws_20260102_combined_export_demo_showcase.stl",
+    function (geometry) {
+    
+      const mesh = new THREE.Mesh(geometry, baseMaterial.clone());
+      mesh.name = `combined_bin_of_screws`;
+
+      const position = new THREE.Vector3(-210, 0, 10);
+      const rotation = new THREE.Vector3(-1.57, 0, 0);
+
+      mesh.position.x = position.x; // m to mm
+      mesh.position.y = position.y; // m to mm
+      mesh.position.z = position.z; // m to mm
+      mesh.rotation.x = rotation.x;
+      mesh.rotation.y = rotation.y;
+      mesh.rotation.z = rotation.z;
+
+      scene.add(mesh);
+      loadedMeshes.push(mesh);
+      addModelToList(mesh.name, mesh);
+    }
+  );
+}
+
+
 
 function loadDefaultSTL(){
   loader.load(
@@ -403,8 +434,12 @@ async function loadReferenceScrews() {
   //   color: 0xcccccc,
   // });
 
-  const filepath = "data/pybullet/final_states_20251229_6.txt";
+  // simulated model 1
+  // const filepath = "data/pybullet/final_states_20251229_6.txt";
   // const filepath = "data/pybullet/final_states_20260101_2.txt";
+
+  // simulated model 2
+  const filepath = "data/pybullet/final_states_20260101_2.txt";
 
   const screwPoses = await getScrewPoses(filepath);
 
@@ -449,9 +484,9 @@ async function loadReferenceScrews() {
 async function loadMeasuredScrews(){
   let screw_count = 0;
   const baseMaterial = new THREE.MeshPhongMaterial({
-    color: 0xcccccc,
-    specular: 0x444444,
-    shininess: 200,
+    color: 0xff5050,
+    specular: 0xff5050,
+    shininess: 10,
   });
   const objectAxes = new THREE.AxesHelper(50);
   objectAxes.visible = false;
@@ -459,7 +494,14 @@ async function loadMeasuredScrews(){
   //   color: 0xcccccc,
   // });
 
-  const filepath = "data/real/scanned_states_20251231_1.txt";
+  // physical model 1
+  // const filepath = "data/real/scanned_states_20251231_1.txt";
+  // const filepath = "data/real/scanned_states_20260102_1.txt";
+  
+  // physical model 2
+  // const filepath = "data/real/scanned_states_20260102_3.txt";
+  const filepath = "data/real/scanned_states_20260102_4.txt";
+
   const screwPoses = await getScrewPoses(filepath);
 
   loader.load(
@@ -505,16 +547,18 @@ async function loadMeasuredScrews(){
 function bring_part_closer_to_bin(mesh){
   // translate and rotate part by a defined amount
 
+
+
   const translation = new THREE.Vector3(
     // -100, // x
-    100, // x
-    790,  // y
+    30, // x
+    780,  // y
     0     // z
   );
   mesh.position.add(translation);
   
   // rotating the scanned parts is not a good plan
-  // const angle = -90*(Math.PI/180);
+  // const angle = 0*(Math.PI/180);
   // mesh.position.applyAxisAngle(new THREE.Vector3(0, 0, 1), angle);
   // const translation2 = new THREE.Vector3(200, 0, 0); // mm
   // mesh.position.add(translation2);
@@ -618,7 +662,7 @@ if (renameCancel) {
 if(relativeMeasurementsButton) {
   relativeMeasurementsButton.addEventListener('click', ()=>{
     console.log("relativeMeasurementsButton clicked!");
-    getRelativeDistances();
+    getRelativeErrors();
   })
 }
 
@@ -761,10 +805,16 @@ function onMouseDown(event){
     rc2.setFromCamera(coords, camera);
     const intersections = rc2.intersectObjects(loadedMeshes, true);
     const hit = intersections.find((entry) => entry.object.type === "Mesh");
+    if (hit.object.name.indexOf("m_screw") < 0) return;
     if (hit) {
       endRenameMode();
       openRenameModal(hit.object);
+      highlightedObjectColor = new THREE.Color(1, 0, 1);
     }
+
+    // if renamed to matching reference screw (r_screw) draw a connecting line
+    // if hovering a screw with a corresponding (connected) screw, highlight both, bright and shinny, like the sun.
+
     return;
   }
 
@@ -802,7 +852,7 @@ function onMouseDown(event){
     // selectedObject.material.opacity = 0.1;
 
 
-    // console.log(selectedObject);
+    console.log(selectedObject);
     const euler = new THREE.Euler();
     // const pos = new THREE.Vector3();
     const pos = selectedObject.position;
@@ -951,8 +1001,9 @@ function attachVector(obj){
   return arrowHelper;
 }
 
-function getRelativeDistances(){
-  console.log("getRelativeDistances()")
+function getRelativeErrors(){
+  console.log("getRelativeErrors()")
+  // find meshes
   const measuredScrews = loadedMeshes.filter(
     (mesh) => mesh.name && mesh.name.startsWith('m_screw')
   );
@@ -960,12 +1011,211 @@ function getRelativeDistances(){
     (mesh)=> mesh.name && mesh.name.startsWith('r_screw')
   );
 
-  for (let r=0;r<referenceScrews.length;r++){
-    let dist = referenceScrews[0].position.distanceTo(referenceScrews[r].position);
-    console.log(`distance from ${referenceScrews[0].name} to ${referenceScrews[r].name} = ${dist}`);
+  // sort list of screws by name explicitly - to account for manual annotation
+  measuredScrews.sort((a, b)=>{
+    const aNum = Number(a.name.split('m_screw_')[1]);
+    const bNum = Number(b.name.split('m_screw_')[1]);
+    return aNum-bNum;
+  });
+  referenceScrews.sort((a, b)=>{
+    const aNum = Number(a.name.split('m_screw_')[1]);
+    const bNum = Number(b.name.split('m_screw_')[1]);
+    return aNum-bNum;
+  });
+
+
+  let relativeErrors = [];
+
+  for (let i=0;i<referenceScrews.length;i++){
+  // for (let i=0;i<10;i++){
+    let row = [];
+    for (let j=0;j<referenceScrews.length;j++){
+      const corresp_measuredScrew_i = measuredScrews.find(screw => screw.name.split('m_screw_')[1] === referenceScrews[i].name.split('r_screw_')[1])
+      const corresp_measuredScrew_j = measuredScrews.find(screw => screw.name.split('m_screw_')[1] === referenceScrews[j].name.split('r_screw_')[1])
+      
+      // relative distance and error
+      const r_dist = referenceScrews[i].position.distanceTo(referenceScrews[j].position);
+      // relative angle and error
+      const r_angle = referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI;
+      
+      let m_dist = -1;
+      let m_angle = -1;
+      if (corresp_measuredScrew_i && corresp_measuredScrew_j){
+        m_dist = corresp_measuredScrew_i.position.distanceTo(corresp_measuredScrew_j.position)
+        m_angle = corresp_measuredScrew_i.quaternion.angleTo(corresp_measuredScrew_j.quaternion) * 180/Math.PI;
+      }
+      // row.push(m_dist);
+      let dist_err = -1
+      let angle_err = -1
+      if (m_dist >= 0){
+        dist_err = (r_dist - m_dist);
+        angle_err = r_angle - m_angle;
+      }
+
+
+
+      row.push([r_dist, m_dist, dist_err, r_angle, m_angle, angle_err]);
+      // console.log(`from ${referenceScrews[i].name} to ${referenceScrews[j].name} = ${r_dist}`);
+      // if (corresp_measuredScrew_i && corresp_measuredScrew_j){
+      //   console.log(`from ${corresp_measuredScrew_i.name} to ${corresp_measuredScrew_j.name} = ${m_dist}`);
+      // }
+    }
+
+
+    // all rows processed
+    
+    relativeErrors.push(row);
+    
   }
+  
+  let averageDistError = 0;
+  let averageAngleError = 0;
+  for (let i =0;i<referenceScrews.length;i++){
+    for(let j=0;j<referenceScrews.length;j++){
+      averageDistError += Math.abs(relativeErrors[i][j][2]);
+      averageAngleError += Math.abs(relativeErrors[i][j][3]);
+    }
+  }
+  averageDistError = averageDistError/(2*(referenceScrews.length ** 2));
+  averageAngleError = averageAngleError/(2*(referenceScrews.length ** 2));
+
+  console.log(averageDistError);
+  console.log(averageAngleError);
+
+  openRelativeErrorsWindow(relativeErrors, [averageDistError, averageAngleError]);
+
+
 
 }
+
+
+
+function openRelativeErrorsWindow(relativeErrors, averageErrors) {
+  const popup = window.open('', '_blank', 'width=1000,height=700');
+  if (!popup) {
+    console.warn('Popup blocked. Unable to open relative distances table.');
+    return;
+  }
+
+  const doc = popup.document;
+  const formatCell = (value) => {
+    if (value === -1 || Number.isNaN(value)) return '-';
+    return Number(value).toFixed(3);
+  };
+
+  const buildTable = (title, data) => {
+    const section = doc.createElement('section');
+    const heading = doc.createElement('h2');
+    heading.textContent = title;
+    section.appendChild(heading);
+
+    const table = doc.createElement('table');
+    const thead = doc.createElement('thead');
+    const headRow = doc.createElement('tr');
+    const corner = doc.createElement('th');
+    corner.textContent = '#';
+    headRow.appendChild(corner);
+
+    if (data.length) {
+      for (let i = 0; i < data[0].length; i += 1) {
+        const th = doc.createElement('th');
+        th.textContent = String(i + 1);
+        headRow.appendChild(th);
+      }
+    }
+
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = doc.createElement('tbody');
+    for (let rowIndex = 0; rowIndex < data.length; rowIndex += 1) {
+      const row = doc.createElement('tr');
+      const rowHeader = doc.createElement('th');
+      rowHeader.textContent = String(rowIndex + 1);
+      row.appendChild(rowHeader);
+
+      for (let colIndex = 0; colIndex < data[rowIndex].length; colIndex += 1) {
+        const td = doc.createElement('td');
+        const cell = data[rowIndex][colIndex];
+        
+        if (Array.isArray(cell)) {
+          const labels = ['rd', 'md', 'ed', 'ra', 'ma', 'ea'];
+          for (let k = 0; k < labels.length; k += 1) {
+            const line = doc.createElement('div');
+            // blank the cell content if no reference screw has no corresp measured screw.
+            if (cell[2]==-1){ 
+              continue;
+            }
+            line.textContent = `${labels[k]}: ${formatCell(cell[k])}`;
+            td.appendChild(line);
+          }
+        } else {
+          td.textContent = formatCell(cell);
+        }
+        row.appendChild(td);
+      }
+      tbody.appendChild(row);
+    }
+
+    table.appendChild(tbody);
+    section.appendChild(table);
+    return section;
+  };
+
+  doc.title = 'Relative Measurements';
+  doc.body.innerHTML = '';
+
+  const style = doc.createElement('style');
+  style.textContent = `
+    body { margin: 0; padding: 16px; font-family: sans-serif; background: #111; color: #eee; }
+    h1 { margin: 0 0 16px 0; font-size: 20px; }
+    h2 { margin: 20px 0 8px 0; font-size: 16px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+    th, td { border: 1px solid #333; padding: 4px 6px; text-align: right; font-size: 12px; }
+    th { background: #1d1d1d; position: sticky; top: 0; z-index: 1; }
+    tbody th { background: #1a1a1a; text-align: center; position: sticky; left: 0; z-index: 2; }
+  `;
+  doc.head.appendChild(style);
+
+  const title = doc.createElement('h1');
+  title.textContent = 'Relative Measurements';
+  const statsDiv = doc.createElement('div');
+  statsDiv.textContent =  `Average Relative Distance Error: ${averageErrors[0].toPrecision(5)}`;
+  statsDiv.textContent += `Average Relative Angle Error:    ${averageErrors[1].toPrecision(5)}`;
+
+  doc.body.appendChild(title);
+  doc.body.appendChild(statsDiv);
+  doc.body.appendChild(buildTable('Relative Distances', relativeErrors));
+}
+
+
+
+function demo_showcase(t=0){
+  // const period = 1/2000;
+  // const s = Math.PI*2*Math.sin(period*t);
+  // const c = Math.PI*2*Math.cos(period*t);
+  // camera.position.set(30*s, 30*c, 100);
+
+  let radius = 100;
+  let angle = 0;
+  let height = 150;
+  const speed = 0.9;
+  const target = new THREE.Vector3(0, 0, 0);
+
+
+  angle += speed * t/1000;
+  camera.position.set(
+    target.x + radius * Math.cos(angle),
+    target.y + height,
+    target.z + radius * Math.sin(angle),
+  )
+
+  camera.lookAt(target);
+
+}
+
+
+
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %                                                                          %
@@ -999,7 +1249,7 @@ window.addEventListener('resize', () => {
 
 // loadDefaultSTL();
 
-loadBin();
+// loadBin();
 
 // loadScrews();
 
@@ -1011,10 +1261,17 @@ loadReferenceScrews().catch((err) => {
 
 loadMeasuredScrews();
 
-function animate() {
+// --- for demo_showcase ---
+// loadThisSTL();
+
+function animate(t) {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
+  
+  // --- for demo_showcase ---
+  // demo_showcase(t);
+
 }
 animate();
 
