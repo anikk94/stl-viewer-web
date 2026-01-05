@@ -144,6 +144,7 @@ function trianglesOverlapSAT(triA, triB) {
 // ------------------------------- local vars ------------------------------ //
 let selectedMesh = null;
 
+let mostRecentScrewAnnotation = null;
 // const referenceScrewPosesFilepath = "data/pybullet/final_states_20251229_6.txt";
 // const measuredScrewPosesFilepath = "data/real/scanned_states_20251231_1.txt";
 // let referenceScrewPoses = [];
@@ -647,6 +648,38 @@ if (renameSubmit) {
     if (renameTarget.userData && renameTarget.userData.nameSpan) {
       renameTarget.userData.nameSpan.textContent = newName;
     }
+
+
+    // search the loadedMeshes list that I maintain
+    const targetRefScrew = loadedMeshes.find(
+      (mesh) => mesh.name === "r_screw_" + newName.split('_')[2]
+    );
+
+    // validate the annotation to actually match a reference screw
+    if (targetRefScrew) {
+      // colour the matching reference screw
+      targetRefScrew.material.color = new THREE.Color(1, 0, 1);
+
+      // colour the annotated screw too!
+      highlightedObjectColor = new THREE.Color(1, 0, 1);
+
+      // if renamed to matching reference screw (r_screw) draw a connecting line
+      // if hovering a screw with a corresponding (connected) screw, highlight both, bright and shinny, like the sun.
+      const points = [
+        mostRecentScrewAnnotation.position,
+        targetRefScrew.position,
+      ];
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({ color: 0xff00ff });
+
+      const line = new THREE.Line(geometry, material);
+      scene.add(line);
+    }
+
+    
+    let r_dist = 
+
+
     closeRenameModal();
     endRenameMode();
   });
@@ -805,16 +838,15 @@ function onMouseDown(event){
     rc2.setFromCamera(coords, camera);
     const intersections = rc2.intersectObjects(loadedMeshes, true);
     const hit = intersections.find((entry) => entry.object.type === "Mesh");
+    // annotation only works on measured screws, not reference screws
     if (hit.object.name.indexOf("m_screw") < 0) return;
+
+    mostRecentScrewAnnotation =  hit.object;
+
     if (hit) {
       endRenameMode();
       openRenameModal(hit.object);
-      highlightedObjectColor = new THREE.Color(1, 0, 1);
     }
-
-    // if renamed to matching reference screw (r_screw) draw a connecting line
-    // if hovering a screw with a corresponding (connected) screw, highlight both, bright and shinny, like the sun.
-
     return;
   }
 
@@ -1037,22 +1069,27 @@ function getRelativeErrors(){
       const r_dist = referenceScrews[i].position.distanceTo(referenceScrews[j].position);
       // relative angle and error
       const r_angle = referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI;
+
+      if (i == 29){
+        if (j == 28){
+          console.log(referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI);
+          console.log(angleBetween(referenceScrews[i].quaternion,referenceScrews[j].quaternion) * 180/Math.PI);
+        }
+      }
       
-      let m_dist = -1;
-      let m_angle = -1;
+      let m_dist = NaN;
+      let m_angle = NaN;
       if (corresp_measuredScrew_i && corresp_measuredScrew_j){
         m_dist = corresp_measuredScrew_i.position.distanceTo(corresp_measuredScrew_j.position)
         m_angle = corresp_measuredScrew_i.quaternion.angleTo(corresp_measuredScrew_j.quaternion) * 180/Math.PI;
       }
       // row.push(m_dist);
-      let dist_err = -1
-      let angle_err = -1
-      if (m_dist >= 0){
-        dist_err = (r_dist - m_dist);
+      let dist_err = NaN
+      let angle_err = NaN
+      if (Number.isFinite(m_dist)){
+        dist_err = r_dist - m_dist;
         angle_err = r_angle - m_angle;
       }
-
-
 
       row.push([r_dist, m_dist, dist_err, r_angle, m_angle, angle_err]);
       // console.log(`from ${referenceScrews[i].name} to ${referenceScrews[j].name} = ${r_dist}`);
@@ -1060,7 +1097,6 @@ function getRelativeErrors(){
       //   console.log(`from ${corresp_measuredScrew_i.name} to ${corresp_measuredScrew_j.name} = ${m_dist}`);
       // }
     }
-
 
     // all rows processed
     
@@ -1070,25 +1106,47 @@ function getRelativeErrors(){
   
   let averageDistError = 0;
   let averageAngleError = 0;
+  let distErrorArray =[];
+  let angleErrorArray = [];
+  let sdDistError = 0;
+  let sdAngleError = 0;
   for (let i =0;i<referenceScrews.length;i++){
     for(let j=0;j<referenceScrews.length;j++){
-      averageDistError += Math.abs(relativeErrors[i][j][2]);
-      averageAngleError += Math.abs(relativeErrors[i][j][3]);
+      const dE = relativeErrors[i][j][2]
+      const aE = relativeErrors[i][j][5]
+      if (Number.isFinite(dE) && Number.isFinite(aE)){
+        averageDistError  += Math.abs(relativeErrors[i][j][2]);
+        averageAngleError += Math.abs(relativeErrors[i][j][5]);
+        distErrorArray.push(Math.abs(relativeErrors[i][j][2]));
+        angleErrorArray.push(Math.abs(relativeErrors[i][j][5]));
+      }
     }
   }
-  averageDistError = averageDistError/(2*(referenceScrews.length ** 2));
+  averageDistError  = averageDistError/ (2*(referenceScrews.length ** 2));
   averageAngleError = averageAngleError/(2*(referenceScrews.length ** 2));
+  sdDistError  = sdArr(distErrorArray);
+  sdAngleError = sdArr(angleErrorArray);
 
-  console.log(averageDistError);
-  console.log(averageAngleError);
-
-  openRelativeErrorsWindow(relativeErrors, [averageDistError, averageAngleError]);
-
-
+  openRelativeErrorsWindow(relativeErrors, [averageDistError, averageAngleError, sdDistError, sdAngleError]);
 
 }
 
 
+function angleBetween(q1, q2){
+  return 2*Math.acos((q1.normalize()).dot((q2.normalize())));
+}
+
+
+function sdArr(arr) {
+  // 1. Calculate the mean (average)
+  const mean = arr.reduce((acc, val) => acc + val, 0) / arr.length;
+
+  // 2. Calculate the variance (average of squared differences from the mean)
+  const variance = arr.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (arr.length - 1); // Use arr.length for population std dev
+
+  // 3. Calculate the standard deviation (square root of variance)
+  return Math.sqrt(variance);
+}
 
 function openRelativeErrorsWindow(relativeErrors, averageErrors) {
   const popup = window.open('', '_blank', 'width=1000,height=700');
@@ -1143,10 +1201,21 @@ function openRelativeErrorsWindow(relativeErrors, averageErrors) {
           for (let k = 0; k < labels.length; k += 1) {
             const line = doc.createElement('div');
             // blank the cell content if no reference screw has no corresp measured screw.
-            if (cell[2]==-1){ 
+            if (isNaN(cell[2])){ 
+              td.appendChild(line);
               continue;
             }
             line.textContent = `${labels[k]}: ${formatCell(cell[k])}`;
+              if (k == 2 || k == 5){
+                if (Math.abs(cell[k]) > 1.0){
+                  line.style.color = "red";
+                } else if (Math.abs(cell[k]) > 0.5) {
+                  line.style.color = "yellow";
+                } else {
+                  line.style.color = "teal"; 
+                }
+              }
+
             td.appendChild(line);
           }
         } else {
@@ -1179,13 +1248,24 @@ function openRelativeErrorsWindow(relativeErrors, averageErrors) {
 
   const title = doc.createElement('h1');
   title.textContent = 'Relative Measurements';
+
   const statsDiv = doc.createElement('div');
-  statsDiv.textContent =  `Average Relative Distance Error: ${averageErrors[0].toPrecision(5)}`;
-  statsDiv.textContent += `Average Relative Angle Error:    ${averageErrors[1].toPrecision(5)}`;
+  const avgDistErrorP = doc.createElement('p')
+  const avgAngleErrorP = doc.createElement('p')
+  const sdDistErrorP = doc.createElement('p')
+  const sdAngleErrorP = doc.createElement('p')
+  avgDistErrorP.textContent =  `Average Relative Distance Error: ${averageErrors[0].toPrecision(5)}`;
+  avgAngleErrorP.textContent += `Average Relative Angle Error:    ${averageErrors[1].toPrecision(5)}`;
+  sdDistErrorP.textContent += `Standard Deviation of Relative Distance Error:    ${averageErrors[2].toPrecision(5)}`;
+  sdAngleErrorP.textContent += `Standard Deviation of Relative Angle Error:    ${averageErrors[3].toPrecision(5)}`;
+  statsDiv.appendChild(avgDistErrorP);
+  statsDiv.appendChild(avgAngleErrorP);
+  statsDiv.appendChild(sdDistErrorP);
+  statsDiv.appendChild(sdAngleErrorP);
 
   doc.body.appendChild(title);
   doc.body.appendChild(statsDiv);
-  doc.body.appendChild(buildTable('Relative Distances', relativeErrors));
+  doc.body.appendChild(buildTable('Relative Errors by Screw Number', relativeErrors));
 }
 
 
