@@ -14,6 +14,45 @@ renderer.setClearColor(0x111111);
 
 const scene = new THREE.Scene();
 
+// DEBUGGING ==================================================================
+// VECTOR VISUALIZATION
+const abmVectorGroup = new THREE.Group();
+abmVectorGroup.name = 'abm-vectors';
+scene.add(abmVectorGroup);
+
+export function plotAbmVectors(vector, origin = new THREE.Vector3(0, 0, 0), options = {}) {
+  const length = options.length ?? 200;
+  const color = options.color ?? 0x36c5f0;
+  const reset = options.reset ?? true;
+  const headLength = length * 0.2;
+  const headWidth = headLength * 0.35;
+  
+  // if (reset) {
+    //   abmVectorGroup.clear();
+  // }
+
+  if (!vector) return;
+  
+  const direction = vector.clone().normalize();
+  abmVectorGroup.add(
+    new THREE.ArrowHelper(direction, origin, length, color, headLength, headWidth)
+  );
+  
+  // Sphere
+  const radius = 10;
+  const widthSegments = 32;
+  const heightSegments = 16;
+  
+  const geometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments);
+  const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
+  const sphere = new THREE.Mesh(geometry, material);
+  
+  sphere.position.copy(origin); // optional
+  scene.add(sphere);
+  
+}
+// DEBUGGING ==================================================================
+
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 0, 5);
 
@@ -884,7 +923,7 @@ function onMouseDown(event){
     // selectedObject.material.opacity = 0.1;
 
 
-    console.log(selectedObject);
+    // console.log(selectedObject);
     const euler = new THREE.Euler();
     // const pos = new THREE.Vector3();
     const pos = selectedObject.position;
@@ -1068,20 +1107,16 @@ function getRelativeErrors(){
       // relative distance and error
       const r_dist = referenceScrews[i].position.distanceTo(referenceScrews[j].position);
       // relative angle and error
-      const r_angle = referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI;
-
-      if (i == 29){
-        if (j == 28){
-          console.log(referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI);
-          console.log(angleBetween(referenceScrews[i].quaternion,referenceScrews[j].quaternion) * 180/Math.PI);
-        }
-      }
+      // const r_angle = referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI;
+      const r_angle = Math.abs(angleBetweenQtn(referenceScrews[i].quaternion, referenceScrews[j].quaternion) * 180/Math.PI);
+      
       
       let m_dist = NaN;
       let m_angle = NaN;
       if (corresp_measuredScrew_i && corresp_measuredScrew_j){
         m_dist = corresp_measuredScrew_i.position.distanceTo(corresp_measuredScrew_j.position)
-        m_angle = corresp_measuredScrew_i.quaternion.angleTo(corresp_measuredScrew_j.quaternion) * 180/Math.PI;
+        // m_angle = corresp_measuredScrew_i.quaternion.angleTo(corresp_measuredScrew_j.quaternion) * 180/Math.PI;
+        m_angle = Math.abs(angleBetweenQtn(corresp_measuredScrew_i.quaternion, corresp_measuredScrew_j.quaternion) * 180/Math.PI);
       }
       // row.push(m_dist);
       let dist_err = NaN
@@ -1091,17 +1126,27 @@ function getRelativeErrors(){
         angle_err = r_angle - m_angle;
       }
 
+      // --- tester ---
+      if (i == 29){
+        if ( j == 3 ){
+          console.log(`${i},${j}`);
+            if (Number.isFinite(m_dist)){
+            // console.log(referenceScrews[i].quaternion.angleTo(referenceScrews[j].quaternion) * 180/Math.PI);
+            console.log("angle between ref screws:", angleBetweenQtn(referenceScrews[i].quaternion,referenceScrews[j].quaternion, print=true) * 180/Math.PI);
+            console.log("angle between mes screws:", angleBetweenQtn(corresp_measuredScrew_i.quaternion,corresp_measuredScrew_j.quaternion, print=true) * 180/Math.PI);
+          }
+        }
+      }
+
       row.push([r_dist, m_dist, dist_err, r_angle, m_angle, angle_err]);
       // console.log(`from ${referenceScrews[i].name} to ${referenceScrews[j].name} = ${r_dist}`);
       // if (corresp_measuredScrew_i && corresp_measuredScrew_j){
       //   console.log(`from ${corresp_measuredScrew_i.name} to ${corresp_measuredScrew_j.name} = ${m_dist}`);
       // }
     }
-
     // all rows processed
     
     relativeErrors.push(row);
-    
   }
   
   let averageDistError = 0;
@@ -1122,19 +1167,86 @@ function getRelativeErrors(){
       }
     }
   }
+
   averageDistError  = averageDistError/ (2*(referenceScrews.length ** 2));
   averageAngleError = averageAngleError/(2*(referenceScrews.length ** 2));
   sdDistError  = sdArr(distErrorArray);
   sdAngleError = sdArr(angleErrorArray);
 
   openRelativeErrorsWindow(relativeErrors, [averageDistError, averageAngleError, sdDistError, sdAngleError]);
-
 }
 
 
-function angleBetween(q1, q2){
-  return 2*Math.acos((q1.normalize()).dot((q2.normalize())));
+function angleBetweenQtn(q1, q2, print=false){
+  // Step 1: convert quaternion → Matrix4
+  const transformationMatrix1 = new THREE.Matrix4();
+  transformationMatrix1.makeRotationFromQuaternion(q1);
+  // Step 2: extract the 3×3 rotation matrix
+  const rotationMatrix1 = new THREE.Matrix3();
+  // Step 3: extract column 1 of the 3x3 rotation matrix (x-axis)
+  rotationMatrix1.setFromMatrix4(transformationMatrix1);
+  const xAxisVector1 = new THREE.Vector3(
+    rotationMatrix1.elements[0],
+    rotationMatrix1.elements[1],
+    rotationMatrix1.elements[2],    
+  );
+  
+  const transformationMatrix2 = new THREE.Matrix4();
+  transformationMatrix2.makeRotationFromQuaternion(q2);
+  const rotationMatrix2 = new THREE.Matrix3();
+  rotationMatrix2.setFromMatrix4(transformationMatrix2);
+  const xAxisVector2 = new THREE.Vector3(
+    rotationMatrix2.elements[0],
+    rotationMatrix2.elements[1],
+    rotationMatrix2.elements[2],    
+  );
+
+  // DEBUGGING 
+  if (print==true){
+    console.log(rotationMatrix1.elements);
+    console.log(rotationMatrix2.elements);
+    console.log(xAxisVector1)
+    console.log(xAxisVector2);
+  }
+
+  // Angle between vectors (arccos(dot_prod/norm_product))
+  return xAxisVector1.angleTo(xAxisVector2);
+  // return 2*Math.acos((q1.normalize()).dot((q2.normalize())));
 }
+
+function abm(pose1, pose2, print=false){
+
+  const r1 = pose1[0];
+  const o1 = pose1[1];
+  
+  const r2 = pose2[0];
+  const o2 = pose2[1];
+
+  const v1 = new THREE.Vector3(
+    r1.elements[0],
+    r1.elements[1],
+    r1.elements[2],    
+  );
+  
+  const v2 = new THREE.Vector3(
+    r2.elements[0],
+    r2.elements[1],
+    r2.elements[2],    
+  );
+  // rot3.elements is a 9-element array
+  if (print==true){
+    console.log("v1:", v1)
+    console.log("v2:", v2);
+    // console.log(r1.elements);
+    // console.log(r2.elements);
+    plotAbmVectors(v1, origin=o1);
+    plotAbmVectors(v2, origin=o2);
+  }
+  
+  return v1.angleTo(v2);
+  // return 2*Math.acos((q1.normalize()).dot((q2.normalize())));
+}
+
 
 
 function sdArr(arr) {
@@ -1149,7 +1261,8 @@ function sdArr(arr) {
 }
 
 function openRelativeErrorsWindow(relativeErrors, averageErrors) {
-  const popup = window.open('', '_blank', 'width=1000,height=700');
+  // const popup = window.open('', '_blank', 'width=1000,height=700');
+  const popup = window.open('', '_blank');
   if (!popup) {
     console.warn('Popup blocked. Unable to open relative distances table.');
     return;

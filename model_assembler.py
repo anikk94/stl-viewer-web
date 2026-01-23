@@ -8,9 +8,10 @@ bin_model_path = "resources/solid_ikea_bin_for_simulation_v3.STL"
 # bin_model_path = "ani_model_library/rectangular_bin/assets/rectangular_box.STL"
 big_model_path = "resources/bin_of_screws_.stl"
 
-screw_poses_path = "data/pybullet/final_states_20260101_2.txt"
+# screw_poses_path = "data/pybullet/final_states_20260101_2.txt"
+screw_poses_path = "data/real/scanned_states_20260102_4.txt"
 
-RENDER_BIN = 0
+RENDER_BIN = False
 
 def read_input() -> list:
     '''
